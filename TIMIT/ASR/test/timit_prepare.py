@@ -25,7 +25,7 @@ def prepare_timit(
     save_json_test,
     phn_set=39,
     uppercase=False,
-    skip_prep=False,
+    skip_prep=True,
 ):
     """
     repares the json files for the TIMIT dataset.

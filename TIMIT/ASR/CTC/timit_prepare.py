@@ -24,7 +24,7 @@ def prepare_timit(
     save_json_valid,
     save_json_test,
     phn_set=39,
-    uppercase=False,
+    uppercase=True,
     skip_prep=False,
 ):
     """
