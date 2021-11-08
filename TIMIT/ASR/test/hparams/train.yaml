@@ -5,9 +5,9 @@
 # ################################
 
 # Seed needs to be set at top of yaml, before objects with parameters are made
-seed: 654321
+seed: 666666
 __set_seed: !apply:torch.manual_seed [!ref <seed>]
-output_folder: !ref results/test_model/<seed>
+output_folder: !ref results/<seed>
 wer_file: !ref <output_folder>/wer.txt
 save_folder: !ref <output_folder>/save
 train_log: !ref <output_folder>/train_log.txt
@@ -15,7 +15,7 @@ train_log: !ref <output_folder>/train_log.txt
 # Data files
 prepare:
     data_folder: ../../dataset_timit  # e.g. /path/to/TIMIT
-    #open_rir_folder: !ref <data_folder> # where to store noisy data for augment (change it if needed)
+#    open_rir_folder: !ref <prepare[data_folder]> # where to store noisy data for augment (change it if needed)
     save_json_train: !ref <output_folder>/train.json
     save_json_valid: !ref <output_folder>/dev.json
     save_json_test: !ref <output_folder>/test.json
@@ -23,8 +23,8 @@ prepare:
     uppercase: True
 
 # Training parameters
-number_of_epochs: 2
-batch_size: 4
+number_of_epochs: 50
+batch_size: 8
 lr: 1.0
 sorting: descending # choose between ascending, descending and random
 
@@ -48,6 +48,7 @@ dnn_neurons: 512
 # Outputs
 output_neurons: 40
 blank_index: 0
+unk_index: 1
 
 # Dataloader options
 train_dataloader_opts:
@@ -68,7 +69,7 @@ augmentation: !new:speechbrain.lobes.augment.TimeDomainSpecAugment
 
 # Can be removed to improve speed
 #env_corrupt: !new:speechbrain.lobes.augment.EnvCorrupt
-#    openrir_folder: !ref <open_rir_folder>
+#    openrir_folder: !ref <prepare[open_rir_folder]>
 #    babble_prob: 0.0
 #    reverb_prob: 0.0
 #    noise_prob: 1.0
