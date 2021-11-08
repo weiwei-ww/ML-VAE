@@ -39,12 +39,13 @@ class ASR_Brain(sb.Brain):
         pout, pout_lens = predictions
         phns, phn_lens = batch.phn_encoded
 
-        if stage == sb.Stage.TRAIN and hasattr(self.hparams, "env_corrupt"):
+        if stage == sb.Stage.TRAIN and hasattr(self.hparams, 'env_corrupt'):
             phns = torch.cat([phns, phns], dim=0)
             phn_lens = torch.cat([phn_lens, phn_lens], dim=0)
 
         loss = self.hparams.compute_cost(pout, phns, pout_lens, phn_lens)
         self.ctc_metrics.append(batch.id, pout, phns, pout_lens, phn_lens)
+
 
         if stage != sb.Stage.TRAIN:
             sequence = sb.decoders.ctc_greedy_decode(
@@ -99,20 +100,21 @@ class ASR_Brain(sb.Brain):
                 print("CTC and PER stats written to ", self.hparams.wer_file)
 
 
-def dataset_prep(hparams, set_name):
-    dataset = sb.dataio.dataset.DynamicItemDataset.from_json(json_path=hparams['prepare']['save_json_{}'.format(set_name)])
-
-    if hparams['sorting'] in ['ascending', 'descending']:
-        reverse = True if hparams['sorting'] == 'descending' else False
-        dataset = dataset.filtered_sorted(sort_key='duration', reverse=reverse)
-        hparams['train_dataloader_opts']['shuffle'] = False
-
-    return dataset
-
 def data_io_prep(hparams):
     'Creates the datasets and their data processing pipelines.'
 
     # 1. Define datasets:
+    def dataset_prep(hparams, set_name):
+        dataset = sb.dataio.dataset.DynamicItemDataset.from_json(
+            json_path=hparams['prepare']['save_json_{}'.format(set_name)])
+
+        if hparams['sorting'] in ['ascending', 'descending']:
+            reverse = True if hparams['sorting'] == 'descending' else False
+            dataset = dataset.filtered_sorted(sort_key='duration', reverse=reverse)
+            hparams['train_dataloader_opts']['shuffle'] = False
+
+        return dataset
+
     train_dataset = dataset_prep(hparams, 'train')
     valid_dataset = dataset_prep(hparams, 'valid')
     test_dataset = dataset_prep(hparams, 'test')
@@ -132,9 +134,12 @@ def data_io_prep(hparams):
 
     # 5. Fit encoder:
     with open('dict.txt') as f:
-        phoneme_dict = [line.split()[0] for line in f.readlines()][3:]
+        phoneme_dict = [line.split()[0] for line in f.readlines() if not line.startswith('err')][3:]
+        # phoneme_dict = [line.split()[0] for line in f.readlines()][3:]
     label_encoder.update_from_iterable(phoneme_dict, sequence_input=False)
     label_encoder.insert_blank(index=hparams['blank_index'])
+    label_encoder.add_unk()
+    label_encoder.add_label('err')
     lab_enc_file = os.path.join(hparams['save_folder'], 'label_encoder.txt')
     label_encoder.save(lab_enc_file)
     # label_encoder.load_or_create(
@@ -183,12 +188,12 @@ if __name__ == '__main__':
     )
 
     # fit the model
-    with torch.autograd.detect_anomaly():
-        asr_brain.fit(
-            asr_brain.hparams.epoch_counter,
-            train_dataset,
-            valid_dataset,
-            train_loader_kwargs=hparams["train_dataloader_opts"],
-            valid_loader_kwargs=hparams["valid_dataloader_opts"],
-        )
+    # with torch.autograd.detect_anomaly():
+    asr_brain.fit(
+        asr_brain.hparams.epoch_counter,
+        train_dataset,
+        valid_dataset,
+        train_loader_kwargs=hparams["train_dataloader_opts"],
+        valid_loader_kwargs=hparams["valid_dataloader_opts"],
+    )
 
