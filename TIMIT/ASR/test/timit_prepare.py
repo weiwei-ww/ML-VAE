@@ -91,6 +91,7 @@ def prepare_timit(
     splits = ["train", "test", "test"]
     annotations = [save_json_train, save_json_valid, save_json_test]
     match_or = [None, dev_spk, test_spk]
+    invalid_suffixes = ['.WAV.wav']
 
     for split, save_file, match in zip(splits, annotations, match_or):
         if uppercase:
@@ -103,10 +104,9 @@ def prepare_timit(
             data_folder,
             match_and=match_lst,
             match_or=match,
+            exclude_and=invalid_suffixes,
             exclude_or=avoid_sentences,
         )
-        if split == "dev":
-            print(wav_lst)
 
         # Json creation
         create_json(wav_lst, save_file, uppercase, phn_set)
@@ -114,7 +114,7 @@ def prepare_timit(
 
 def _get_phonemes():
 
-    # This dictionary is used to convert the 60 phoneme set
+    # This dictionary is used to conver the 60 phoneme set
     # into the 48 one
     from_60_to_48_phn = {}
     from_60_to_48_phn["sil"] = "sil"
@@ -180,7 +180,7 @@ def _get_phonemes():
     from_60_to_48_phn["z"] = "z"
     from_60_to_48_phn["zh"] = "zh"
 
-    # This dictionary is used to convert the 60 phoneme set
+    # This dictionary is used to conver the 60 phoneme set
     from_60_to_39_phn = {}
     from_60_to_39_phn["sil"] = "sil"
     from_60_to_39_phn["aa"] = "aa"
@@ -346,14 +346,10 @@ def skip(annotations):
         if True, the preparation phase can be skipped.
         if False, it must be done.
     """
-    skip = True
-
     for annotation in annotations:
         if not os.path.isfile(annotation):
-            skip = False
-            break
-
-    return skip
+            return False
+    return True
 
 
 def create_json(
@@ -384,7 +380,10 @@ def create_json(
 
         # Getting sentence and speaker ids
         spk_id = wav_file.split("/")[-2]
-        snt_id = wav_file.split("/")[-1].replace(".wav", "")
+        if uppercase:
+            snt_id = wav_file.split("/")[-1].replace(".WAV", "")
+        else:
+            snt_id = wav_file.split("/")[-1].replace(".wav", "")
         snt_id = spk_id + "_" + snt_id
 
         # Reading the signal (to retrieve duration in seconds)
@@ -411,7 +410,7 @@ def create_json(
             phn_file = wav_file.replace(".wav", ".phn")
 
         if not os.path.exists(os.path.dirname(phn_file)):
-            err_msg = "the wrd file %s does not exists!" % (phn_file)
+            err_msg = "the phn file %s does not exists!" % (phn_file)
             raise FileNotFoundError(err_msg)
 
         # Getting the phoneme and ground truth ends lists from the phn files
@@ -423,7 +422,7 @@ def create_json(
             "spk_id": spk_id,
             "phn": phonemes,
             "wrd": words,
-            "ground_truth_phn_ends": ends,
+            # "ground_truth_phn_ends": ends,
         }
 
     # Writing the dictionary to the json file
