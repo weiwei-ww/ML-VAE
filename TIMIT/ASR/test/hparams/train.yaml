@@ -5,7 +5,7 @@
 # ################################
 
 # Seed needs to be set at top of yaml, before objects with parameters are made
-seed: 666666
+seed: 654321
 __set_seed: !apply:torch.manual_seed [!ref <seed>]
 output_folder: !ref results/<seed>
 wer_file: !ref <output_folder>/wer.txt
@@ -46,7 +46,7 @@ dnn_blocks: 2
 dnn_neurons: 512
 
 # Outputs
-output_neurons: 40
+output_neurons: 41
 blank_index: 0
 unk_index: 1
 
@@ -66,15 +66,6 @@ normalize: !new:speechbrain.processing.features.InputNormalization
 augmentation: !new:speechbrain.lobes.augment.TimeDomainSpecAugment
     sample_rate: !ref <sample_rate>
     speeds: [95, 100, 105]
-
-# Can be removed to improve speed
-#env_corrupt: !new:speechbrain.lobes.augment.EnvCorrupt
-#    openrir_folder: !ref <prepare[open_rir_folder]>
-#    babble_prob: 0.0
-#    reverb_prob: 0.0
-#    noise_prob: 1.0
-#    noise_snr_low: 0
-#    noise_snr_high: 15
 
 epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter
     limit: !ref <number_of_epochs>
