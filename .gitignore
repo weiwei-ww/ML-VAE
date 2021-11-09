@@ -3,4 +3,8 @@ __pycache__/
 
 results
 
-dataset_*
+dataset_timit
+original_dataset
+
+*.json
+
