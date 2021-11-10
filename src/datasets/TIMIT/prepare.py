@@ -6,8 +6,6 @@ from pathlib import Path
 from speechbrain.utils.data_utils import get_all_files
 from speechbrain.dataio.dataio import read_audio
 
-from utils.phonemes import map_phoneme
-
 logger = logging.getLogger(__name__)
 SAMPLERATE = 16000
 
@@ -17,7 +15,7 @@ def prepare(
     train_json_path,
     valid_json_path,
     test_json_path,
-    n_phonemes
+    phoneme_set_handler
 ):
     '''
     Parse the json files for the TIMIT dataset.
@@ -91,11 +89,11 @@ def prepare(
         )
 
         # create json file
-        create_json(wav_lst, json_path, uppercase, n_phonemes)
+        create_json(wav_lst, json_path, uppercase, phoneme_set_handler)
 
 
 def create_json(
-    wav_lst, json_file, uppercase, n_phonemes,
+    wav_lst, json_file, uppercase, phoneme_set_handler,
 ):
     '''
     Creates the json file given a list of wav files.
@@ -144,7 +142,7 @@ def create_json(
 
         # words = [line.rstrip('\n').split(' ')[2] for line in open(wrd_file)]
         # words = ' '.join(words)
-        words, word_segments = get_phoneme_lists(wrd_file, n_phonemes=-1)
+        words, word_segments = get_phoneme_lists(wrd_file, phoneme_set_handler)
 
 
         # Retrieving phonemes
@@ -158,7 +156,7 @@ def create_json(
             raise FileNotFoundError(err_msg)
 
         # Getting the phoneme and ground truth ends lists from the phn files
-        phonemes, phoneme_segments = get_phoneme_lists(phn_file, n_phonemes)
+        phonemes, phoneme_segments = get_phoneme_lists(phn_file, phoneme_set_handler)
 
         json_dict[snt_id] = {
             'wav_path': wav_file,
@@ -265,7 +263,7 @@ def _get_speaker():
     return dev_spk, test_spk
 
 
-def get_phoneme_lists(phn_file, n_phonemes):
+def get_phoneme_lists(phn_file, phoneme_set_handler):
     '''
     Reads the phn file and gets the phoneme list & ground truth ends list.
     '''
@@ -282,15 +280,14 @@ def get_phoneme_lists(phn_file, n_phonemes):
         #         phoneme = ''
 
         # Converting phns if necessary
-        if n_phonemes != -1:
-            phoneme = map_phoneme(phoneme)
+        phoneme = phoneme_set_handler.map_phoneme(phoneme)
 
         # Appending arrays
         if len(phoneme) > 0:
             phonemes.append(phoneme)
             segments.append([int(start) / SAMPLERATE, int(end) / SAMPLERATE])
 
-    if n_phonemes != 60 and n_phonemes != -1:
+    if phoneme_set_handler.n_phonemes != 60:
         # Filtering out consecutive silences by applying a mask with `True` marking
         # which sils to remove
         # e.g.

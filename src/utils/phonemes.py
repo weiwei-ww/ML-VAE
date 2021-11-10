@@ -61,7 +61,8 @@ z	z	z
 zh	zh	sh
 spn	err	err
 nsn	err	err
-sp	sil	sil'''
+sp	sil	sil
+sil sil sil'''
 
 phoneme_map_to_48 = {}
 phoneme_map_to_39 = {}
@@ -73,16 +74,6 @@ for p1, p2, p3 in mapping_lines:
     phoneme_map_to_48[p1] = p2
     phoneme_map_to_39[p1] = p3
     phoneme_map_to_39[p2] = p3
-
-
-def map_phoneme(phoneme, n_phonemes=39):
-    assert n_phonemes in [60, 48, 39]
-    if n_phonemes == 60:
-        return phoneme
-    if n_phonemes == 48:
-        return phoneme_map_to_48[phoneme]
-    if n_phonemes == 39:
-        return phoneme_map_to_39[phoneme]
 
 
 def get_phoneme_set(n_phonemes=39):
@@ -97,3 +88,22 @@ def get_phoneme_set(n_phonemes=39):
             phoneme_set.add(p3)
 
     return phoneme_set
+
+
+
+class PhonemeSetHandler:
+    def __init__(self, n_phonemes):
+        assert n_phonemes in [60, 48, 39]
+        self.n_phonemes = n_phonemes
+        self.phoneme_set = get_phoneme_set(n_phonemes)
+
+    def get_phoneme_set(self):
+        return self.phoneme_set
+
+    def map_phoneme(self, p):
+        if self.n_phonemes == 60 or p not in phoneme_map_to_48:
+            return p
+        if self.n_phonemes == 48:
+            return phoneme_map_to_48[p]
+        if self.n_phonemes == 39:
+            return phoneme_map_to_39[p]

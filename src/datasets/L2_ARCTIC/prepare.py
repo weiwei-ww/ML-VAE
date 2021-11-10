@@ -8,8 +8,6 @@ from speechbrain.utils.data_utils import get_all_files
 
 from datasets.L2_ARCTIC.parse_textgrid import parse_textgrid
 
-from utils.phonemes import map_phoneme
-
 logger = logging.getLogger(__name__)
 
 train_spks = '''ABA
@@ -39,7 +37,7 @@ TXHC
 YKWK
 ZHAA'''
 
-def prepare(dataset_dir, train_json_path, valid_json_path, test_json_path, n_phonemes):
+def prepare(dataset_dir, train_json_path, valid_json_path, test_json_path, phoneme_set_handler):
     # initialization
     dataset_dir = Path(dataset_dir)
 
@@ -73,10 +71,10 @@ def prepare(dataset_dir, train_json_path, valid_json_path, test_json_path, n_pho
             match_or=match_or
         )
         ann_paths = [Path(path) for path in ann_paths]
-        generate_json(json_path, ann_paths, n_phonemes)
+        generate_json(json_path, ann_paths, phoneme_set_handler)
 
 
-def generate_json(json_path, ann_paths, n_phonemes):
+def generate_json(json_path, ann_paths, phoneme_set_handler):
     json_data = {}
 
     for ann_path in tqdm(sorted(ann_paths)):
@@ -93,13 +91,13 @@ def generate_json(json_path, ann_paths, n_phonemes):
         # canonical phonemes
         canonicals = []
         for _, _, p in parsed_tg['canonical_phoneme']:
-            canonicals.append(map_phoneme(p, n_phonemes))
+            canonicals.append(phoneme_set_handler.map_phoneme(p))
 
         # pronounced phoneme and segments
         phonemes = []
         phoneme_segments = []
         for start_time, end_time, p in parsed_tg['phoneme']:
-            phonemes.append(map_phoneme(p, n_phonemes))
+            phonemes.append(phoneme_set_handler.map_phoneme(p))
             phoneme_segments.append([start_time, end_time])
 
         # words
