@@ -1,9 +1,13 @@
 import sys
 import os
 import importlib
+import functools
 
 import torch
 from hyperpyyaml import load_hyperpyyaml
+from hyperpyyaml import dump_hyperpyyaml
+from hyperpyyaml import resolve_references
+from hyperpyyaml.core import recursive_update
 import speechbrain as sb
 
 from utils.phonemes import get_phoneme_set
@@ -28,8 +32,8 @@ class SBModel(sb.Brain):
                 wavs = self.hparams.augmentation(wavs, wav_lens)
 
         feats = self.hparams.compute_features(wavs)
-        feats = self.modules.normalize(feats, wav_lens)
-        out = self.modules.model(feats)
+        feats = self.modules.normalizer(feats, wav_lens)
+        out = self.modules.crdnn(feats)
         out = self.modules.output(out)
         pout = self.hparams.log_softmax(out)
 
@@ -44,13 +48,13 @@ class SBModel(sb.Brain):
             phns = torch.cat([phns, phns], dim=0)
             phn_lens = torch.cat([phn_lens, phn_lens], dim=0)
 
-        loss = self.hparams.compute_cost(pout, phns, pout_lens, phn_lens)
+        loss = self.hparams.compute_cost(pout, phns, pout_lens, phn_lens, self.label_encoder.get_blank_index())
         self.ctc_metrics.append(batch.id, pout, phns, pout_lens, phn_lens)
 
 
         if stage != sb.Stage.TRAIN:
             sequence = sb.decoders.ctc_greedy_decode(
-                pout, pout_lens, blank_id=self.hparams.blank_index
+                pout, pout_lens, blank_id=self.label_encoder.get_blank_index()
             )
             self.per_metrics.append(
                 ids=batch.id,
@@ -64,7 +68,9 @@ class SBModel(sb.Brain):
 
     def on_stage_start(self, stage, epoch):
         'Gets called when a stage (either training, validation, test) starts.'
-        self.ctc_metrics = self.hparams.ctc_stats()
+        self.ctc_metrics = self.hparams.ctc_stats(functools.partial(self.hparams.compute_cost,
+                                                                    blank_index=self.label_encoder.get_blank_index(),
+                                                                    reduction='batch'))
 
         if stage != sb.Stage.TRAIN:
             self.per_metrics = self.hparams.per_stats()
@@ -77,7 +83,7 @@ class SBModel(sb.Brain):
             per = self.per_metrics.summarize('error_rate')
 
         if stage == sb.Stage.VALID:
-            old_lr, new_lr = self.hparams.lr_annealing(per)
+            old_lr, new_lr = self.hparams.scheduler(per)
             sb.nnet.schedulers.update_learning_rate(self.optimizer, new_lr)
             self.hparams.train_logger.log_stats(
                 stats_meta={'epoch': epoch, 'lr': old_lr},
@@ -153,6 +159,7 @@ if __name__ == '__main__':
     with open(hparams_file) as fin:
         hparams = load_hyperpyyaml(fin, overrides)
 
+
     # json file preparation
     dataset_name = hparams['dataset']
     importlib.import_module(f'datasets.{dataset_name}.prepare').prepare(**hparams['prepare'])
@@ -163,11 +170,11 @@ if __name__ == '__main__':
     # initialize model
     asr_brain = SBModel(
         label_encoder=label_encoder,
-        modules=hparams['modules'],
-        opt_class=hparams['opt_class'],
-        hparams=hparams,
+        modules=hparams['model']['modules'],
+        opt_class=hparams['model']['opt_class'],
+        hparams=hparams['model'],
         run_opts=run_opts,
-        checkpointer=hparams['checkpointer'],
+        checkpointer=hparams['model']['checkpointer'],
     )
 
     # create experiment directory
@@ -180,16 +187,16 @@ if __name__ == '__main__':
 
     # fit the model
     asr_brain.fit(
-        hparams['epoch_counter'],
+        hparams['model']['epoch_counter'],
         train_dataset,
         valid_dataset,
         train_loader_kwargs=hparams['train_dataloader_opts'],
         valid_loader_kwargs=hparams['valid_dataloader_opts'],
     )
 
-    # # Test
-    # asr_brain.evaluate(
-    #     test_dataset,
-    #     min_key='PER',
-    #     test_loader_kwargs=hparams['test_dataloader_opts'],
-    # )
+    # Test
+    asr_brain.evaluate(
+        test_dataset,
+        min_key='PER',
+        test_loader_kwargs=hparams['test_dataloader_opts'],
+    )

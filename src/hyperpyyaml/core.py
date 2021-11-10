@@ -17,6 +17,7 @@ import collections
 import ruamel.yaml
 import operator as op
 from io import StringIO
+from ruamel.yaml.comments import TaggedScalar, CommentedMap
 
 
 # NOTE: Empty dict as default parameter is fine here since overrides are never
@@ -257,7 +258,7 @@ def dump_hyperpyyaml(yaml_tree, output_stream, *args, **kwargs):
     ruamel_yaml.dump(yaml_tree, output_stream, *args, **kwargs)
 
 
-def resolve_references(yaml_stream, overrides=None, overrides_must_match=True):
+def resolve_references(yaml_stream, overrides=None, overrides_must_match=False):
     r'''Resolves inter-document references, a component of HyperPyYAML.
 
     Arguments
@@ -299,13 +300,11 @@ def resolve_references(yaml_stream, overrides=None, overrides_must_match=True):
     ruamel_yaml = ruamel.yaml.YAML()
     preview = ruamel_yaml.load(yaml_stream)
 
-    _walk_tree_and_resolve("root", preview, preview, {}, file_path, strict=False)  # WW
     if overrides is not None and overrides != "":
         if isinstance(overrides, str):
             overrides = ruamel_yaml.load(overrides)
         recursive_update(preview, overrides, must_match=overrides_must_match)
-    # _walk_tree_and_resolve("root", preview, preview, overrides, file_path)  # WW
-    _walk_tree_and_resolve("root", preview, preview, {}, file_path, strict=True)  # WW
+    _walk_tree_and_resolve("root", preview, preview, {}, file_path)
 
     # Dump back to string so we can load with bells and whistles
     yaml_stream = StringIO()
@@ -315,7 +314,7 @@ def resolve_references(yaml_stream, overrides=None, overrides_must_match=True):
     return yaml_stream
 
 
-def _walk_tree_and_resolve(key, current_node, tree, overrides, file_path, strict):
+def _walk_tree_and_resolve(key, current_node, tree, overrides, file_path):
     """A recursive function for resolving ``!ref`` and ``!copy`` tags.
 
     Loads additional yaml files if ``!include:`` tags are used.
@@ -333,8 +332,6 @@ def _walk_tree_and_resolve(key, current_node, tree, overrides, file_path, strict
         A set of overrides to pass to any ``!includes:`` files.
     file_path : str
         The location of the directory storing the main yaml file
-    strict : bool
-        If the !PLACEHOLDER must be overridden.
 
     Returns
     -------
@@ -347,7 +344,7 @@ def _walk_tree_and_resolve(key, current_node, tree, overrides, file_path, strict
         for i, sub_node in enumerate(current_node):
             sub_key = i if key == "root" else f"{key}[{i}]"
             current_node[i] = _walk_tree_and_resolve(
-                sub_key, sub_node, tree, overrides, file_path, strict
+                sub_key, sub_node, tree, overrides, file_path
             )
 
     # Walk mapping and resolve.
@@ -355,7 +352,7 @@ def _walk_tree_and_resolve(key, current_node, tree, overrides, file_path, strict
         for k, sub_node in current_node.items():
             sub_key = k if key == "root" else f"{key}[{k}]"
             current_node[k] = _walk_tree_and_resolve(
-                sub_key, sub_node, tree, overrides, file_path, strict
+                sub_key, sub_node, tree, overrides, file_path
             )
 
     # Base case, handle tags
@@ -364,8 +361,7 @@ def _walk_tree_and_resolve(key, current_node, tree, overrides, file_path, strict
 
         # Placeholders should have been replaced before now
         if tag_value == "!PLACEHOLDER":
-            if strict:
-                raise ValueError(f"'{key}' is a !PLACEHOLDER and must be replaced.")
+            raise ValueError(f"'{key}' is a !PLACEHOLDER and must be replaced.")
 
         # Resolve references to other nodes
         elif tag_value in ["!ref", "!copy"]:
@@ -391,10 +387,11 @@ def _walk_tree_and_resolve(key, current_node, tree, overrides, file_path, strict
                 else:
                     overrides = dict(current_node)
                 with open(filename) as f:
-                    included_yaml = resolve_references(f, overrides)  # WW
+                    included_yaml = resolve_references(f, overrides)
             else:
                 with open(filename) as f:
-                    included_yaml = resolve_references(f)  # WW
+                    included_yaml = resolve_references(f)
+
             # Append resolved yaml to current node
             ruamel_yaml = ruamel.yaml.YAML()
             current_node = ruamel_yaml.load(included_yaml)
@@ -698,6 +695,10 @@ def recursive_update(d, u, must_match=False):
     # e.g. d = {"a":1}, u = {"a": {"b": 2 }}
     for k, v in u.items():
         if isinstance(v, collections.abc.Mapping) and k in d:
+            if isinstance(d[k], TaggedScalar):
+                commented_map = CommentedMap()
+                commented_map.yaml_set_tag(d[k].tag.value)
+                d[k] = commented_map
             recursive_update(d.get(k, {}), v)
         elif must_match and k not in d:
             raise KeyError(

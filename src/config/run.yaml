@@ -1,0 +1,39 @@
+# Seed needs to be set at top of yaml, before objects with parameters are made
+seed: 654321
+__set_seed: !apply:torch.manual_seed [!ref <seed>]
+
+dataset: !PLACEHOLDER
+
+output_dir: !ref results/<dataset>/<seed>
+
+train_logger: !new:speechbrain.utils.train_logger.FileTrainLogger
+    save_file: !ref <output_dir>/train_log.txt
+
+# Data files
+prepare:
+    dataset_dir: !ref datasets/<dataset>/original_dataset  # e.g. /path/to/dataset
+    train_json_path: !ref datasets/<dataset>/annotation/train.json
+    valid_json_path: !ref datasets/<dataset>/annotation/valid.json
+    test_json_path: !ref datasets/<dataset>/annotation/test.json
+    n_phonemes: 39
+
+blank_index: 0
+unk_index: 1
+
+# Training parameters
+batch_size: 2
+
+# Dataset and dataloader options
+sorting: descending # choose between ascending, descending and random
+train_dataloader_opts:
+    batch_size: !ref <batch_size>
+valid_dataloader_opts:
+    batch_size: !ref <batch_size>
+test_dataloader_opts:
+    batch_size: !ref <batch_size>
+
+
+model: !include:../models/CRDNN_CTC/model.yaml
+    output_dir: !ref <output_dir>
+    train_logger: !ref <train_logger>
+
