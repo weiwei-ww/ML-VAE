@@ -5,6 +5,9 @@ __set_seed: !apply:torch.manual_seed [!ref <seed>]
 dataset: !PLACEHOLDER
 model_class: !PLACEHOLDER
 
+__timestamp: !apply:datetime.datetime.now
+model_name: !apply:datetime.datetime.strftime [!ref <__timestamp>, '%y_%m%d_%H%M%S']
+
 output_dir: !ref results/<dataset>/<seed>
 
 train_logger: !new:speechbrain.utils.train_logger.FileTrainLogger
