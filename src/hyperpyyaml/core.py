@@ -378,18 +378,20 @@ def _walk_tree_and_resolve(key, current_node, tree, overrides, file_path):
         elif tag_value.startswith("!include:"):
             filename = tag_value[len("!include:") :]
 
+            if file_path is not None:
+                filename = os.path.join(file_path, filename)
+
             # Update overrides with child keys
             if isinstance(current_node, dict):
                 if overrides:
                     recursive_update(overrides, current_node)
                 else:
                     overrides = dict(current_node)
-
-            if file_path is not None:
-                filename = os.path.join(file_path, filename)
-            with open(filename) as f:
-                # included_yaml = resolve_references(f, overrides)  # WW
-                included_yaml = resolve_references(f)  # WW
+                with open(filename) as f:
+                    included_yaml = resolve_references(f, overrides)  # WW
+            else:
+                with open(filename) as f:
+                    included_yaml = resolve_references(f)  # WW
             # Append resolved yaml to current node
             ruamel_yaml = ruamel.yaml.YAML()
             current_node = ruamel_yaml.load(included_yaml)
