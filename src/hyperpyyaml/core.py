@@ -704,5 +704,7 @@ def recursive_update(d, u, must_match=False):
             raise KeyError(
                 f"Override '{k}' not found in: {[key for key in d.keys()]}"
             )
+        elif isinstance(v, TaggedScalar):
+            d[k].yaml_set_tag(v.tag.value)
         else:
             d[k] = v
