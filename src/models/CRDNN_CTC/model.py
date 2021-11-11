@@ -3,6 +3,7 @@ import functools
 import torch
 import speechbrain as sb
 
+
 class SBModel(sb.Brain):
     def __init__(self, label_encoder, **kwargs):
         super(SBModel, self).__init__(**kwargs)
@@ -11,18 +12,23 @@ class SBModel(sb.Brain):
     def compute_forward(self, batch, stage):
         'Given an input batch it computes the phoneme probabilities.'
         batch = batch.to(self.device)
-        wavs, wav_lens = batch['sig']
-        # Adding optional augmentation when specified:
         if stage == sb.Stage.TRAIN:
-            if hasattr(self.hparams, 'env_corrupt'):
-                wavs_noise = self.hparams.env_corrupt(wavs, wav_lens)
-                wavs = torch.cat([wavs, wavs_noise], dim=0)
-                wav_lens = torch.cat([wav_lens, wav_lens])
-            if hasattr(self.hparams, 'augmentation'):
-                wavs = self.hparams.augmentation(wavs, wav_lens)
-
-        feats = self.hparams.compute_features(wavs)
-        feats = self.modules.normalizer(feats, wav_lens)
+            wavs, wav_lens = batch['augmented_wav']
+            feats, feat_lens = batch['augmented_feat']
+        else:
+            wavs, wav_lens = batch['wav']
+            feats, feat_lens = batch['feat']
+        # Adding optional augmentation when specified:
+        # if stage == sb.Stage.TRAIN:
+        #     if hasattr(self.hparams, 'env_corrupt'):
+        #         wavs_noise = self.hparams.env_corrupt(wavs, wav_lens)
+        #         wavs = torch.cat([wavs, wavs_noise], dim=0)
+        #         wav_lens = torch.cat([wav_lens, wav_lens])
+        #     if hasattr(self.hparams, 'augmentation'):
+        #         wavs = self.hparams.augmentation(wavs, wav_lens)
+        #
+        # feats = self.hparams.compute_features(wavs)
+        # feats = self.modules.normalizer(feats, wav_lens)
         out = self.modules.crdnn(feats)
         out = self.modules.output(out)
         pout = self.hparams.log_softmax(out)
