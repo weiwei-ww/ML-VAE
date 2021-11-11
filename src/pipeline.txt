@@ -1,0 +1,35 @@
+fit():
+	on_fit_start()
+	for each epoch:
+		on_stage_start(Stage.TRAIN, epoch)
+
+		for each batch:
+			fit_batch(batch):
+				outputs = compute_forward(batch, Stage.TRAIN)
+				loss = compute_objectives(outputs, batch, Stage.TRAIN)
+				loss.backward()
+				optimizer.step()
+				return loss.detach().cpu()
+
+		on_stage_end(Stage.TRAIN, self.avg_train_loss, epoch)
+
+
+		on_stage_start(Stage.VALID, epoch)
+
+		for each batch:
+			evaluate_batch(batch, stage=Stage.VALID):
+		        out = compute_forward(batch, stage)
+		        loss = compute_objectives(out, batch, stage)
+		        return loss.detach().cpu()
+
+		on_stage_end(Stage.VALID, avg_valid_loss, epoch)
+
+
+evaluate():
+	on_evaluate_start(max_key, min_key)
+	self.on_stage_start(Stage.TEST, epoch=None)
+
+	for each batch:
+		evaluate_batch(batch, stage=Stage.TEST)
+
+	on_stage_end(Stage.TEST, self.avg_test_loss, None)
