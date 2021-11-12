@@ -38,7 +38,7 @@ class SBModel(sb.Brain):
             phn_lens = torch.cat([phn_lens, phn_lens], dim=0)
 
         loss = self.hparams.compute_cost(pout, phns, pout_lens, phn_lens, self.label_encoder.get_blank_index())
-        self.ctc_metrics.append(batch['id'], pout, phns, pout_lens, phn_lens)
+        self.ctc_stats.append(batch['id'], pout, phns, pout_lens, phn_lens)
 
 
         if stage != sb.Stage.TRAIN:
@@ -65,23 +65,25 @@ class SBModel(sb.Brain):
         gt_cnncl_seqs = sb.utils.data_utils.undo_padding(gt_cnncl_seqs, gt_cnncl_seq_lens)
 
         # align sequences
-        ali_pred_phns, ali_gt_phns, ali_gt_cnncls = \
+        ali_pred_phn_seqs, ali_gt_phn_seqs, ali_gt_cnncl_seqs = \
             utils.alignment.batch_align_sequences(pred_phns, gt_phn_seqs, gt_cnncl_seqs)
 
-        print()
-
-
-        # TODO: get model prediction of MD
-
-        # TODO:
+        self.md_stats.append(
+            batch['id'],
+            batch_pred_phn_seqs=ali_pred_phn_seqs,
+            batch_gt_phn_seqs=ali_gt_phn_seqs,
+            batch_gt_cnncl_seqs=ali_gt_cnncl_seqs
+        )
+        print(self.md_stats.summarize())
 
         return loss
 
     def on_stage_start(self, stage, epoch):
         'Gets called when a stage (either training, validation, test) starts.'
-        self.ctc_metrics = self.hparams.ctc_stats(functools.partial(self.hparams.compute_cost,
+        self.ctc_stats = self.hparams.ctc_stats(functools.partial(self.hparams.compute_cost,
                                                                     blank_index=self.label_encoder.get_blank_index(),
                                                                     reduction='batch'))
+        self.md_stats = self.hparams.md_stats()
 
         if stage != sb.Stage.TRAIN:
             self.per_metrics = self.hparams.per_stats()
@@ -112,7 +114,7 @@ class SBModel(sb.Brain):
             )
             with open(self.hparams.wer_file, 'w') as w:
                 w.write('CTC loss stats:\n')
-                self.ctc_metrics.write_stats(w)
+                self.ctc_stats.write_stats(w)
                 w.write('\nPER stats:\n')
                 self.per_metrics.write_stats(w)
                 print('CTC and PER stats written to ', self.hparams.wer_file)
