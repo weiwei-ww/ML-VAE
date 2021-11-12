@@ -62,6 +62,7 @@ modules:
 compute_cost: !name:speechbrain.nnet.losses.ctc_loss
 ctc_stats: !name:speechbrain.utils.metric_stats.MetricStats
 per_stats: !name:speechbrain.utils.metric_stats.ErrorRateStats
+md_stats: !name:utils.metric_stats.MDMetricStats
 
 
 checkpoints_dir: !ref <output_dir>/checkpoints
