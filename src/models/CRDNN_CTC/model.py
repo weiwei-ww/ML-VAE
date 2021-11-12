@@ -2,6 +2,10 @@ import functools
 
 import torch
 import speechbrain as sb
+import speechbrain.utils.data_utils
+
+import utils.alignment
+import utils.md_scoring
 
 
 class SBModel(sb.Brain):
@@ -18,7 +22,6 @@ class SBModel(sb.Brain):
         else:
             wavs, wav_lens = batch['wav']
             feats, feat_lens = batch['feat']
-        gt_segmentations, gt_segmentation_lens = batch['gt_segmentation']
         out = self.modules.crdnn(feats)
         out = self.modules.output(out)
         pout = self.hparams.log_softmax(out)
@@ -28,7 +31,7 @@ class SBModel(sb.Brain):
     def compute_objectives(self, predictions, batch, stage):
         'Given the network predictions and targets computed the CTC loss.'
         pout, pout_lens = predictions
-        phns, phn_lens = batch['encoded_phoneme_list']
+        phns, phn_lens = batch['gt_phn_seq']
 
         if stage == sb.Stage.TRAIN and hasattr(self.hparams, 'env_corrupt'):
             phns = torch.cat([phns, phns], dim=0)
@@ -39,16 +42,38 @@ class SBModel(sb.Brain):
 
 
         if stage != sb.Stage.TRAIN:
-            sequence = sb.decoders.ctc_greedy_decode(
+            sequences = sb.decoders.ctc_greedy_decode(
                 pout, pout_lens, blank_id=self.label_encoder.get_blank_index()
             )
             self.per_metrics.append(
                 ids=batch.id,
-                predict=sequence,
+                predict=sequences,
                 target=phns,
                 target_len=phn_lens,
                 ind2lab=self.label_encoder.decode_ndim,
             )
+
+        pred_phns = sb.decoders.ctc_greedy_decode(
+            pout, pout_lens, blank_id=self.label_encoder.get_blank_index()
+        )
+
+        # unpad sequences
+        gt_phn_seqs, gt_phn_seq_lens = batch['gt_phn_seq']
+        gt_cnncl_seqs, gt_cnncl_seq_lens = batch['gt_cnncl_seq']
+
+        gt_phn_seqs = sb.utils.data_utils.undo_padding(gt_phn_seqs, gt_phn_seq_lens)
+        gt_cnncl_seqs = sb.utils.data_utils.undo_padding(gt_cnncl_seqs, gt_cnncl_seq_lens)
+
+        # align sequences
+        ali_pred_phns, ali_gt_phns, ali_gt_cnncls = \
+            utils.alignment.batch_align_sequences(pred_phns, gt_phn_seqs, gt_cnncl_seqs)
+
+        print()
+
+
+        # TODO: get model prediction of MD
+
+        # TODO:
 
         return loss
 
