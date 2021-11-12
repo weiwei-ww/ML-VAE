@@ -55,10 +55,20 @@ def data_io_prep(hparams):
 
 
     # 3. Define text pipeline:
-    sb.dataio.dataset.add_dynamic_item(datasets, lambda p: label_encoder.encode_sequence_torch(p), takes='phonemes', provides='encoded_phonemes')
+    sb.dataio.dataset.add_dynamic_item(datasets, lambda p: label_encoder.encode_sequence_torch(p),
+                                       takes='phoneme_list', provides='encoded_phoneme_list')
+    sb.dataio.dataset.add_dynamic_item(datasets, lambda p: label_encoder.encode_sequence_torch(p),
+                                       takes='canonical_list', provides='encoded_canonical_list')
 
     # 4. Set output:
-    sb.dataio.dataset.set_output_keys(datasets, ['id', 'wav', 'augmented_wav', 'feat', 'augmented_feat', 'encoded_phonemes'])
+    output_keys = [
+        'id',
+        'encoded_phoneme_list', 'encoded_canonical_list',
+        'wav', 'augmented_wav',
+        'feat', 'augmented_feat',
+        'gt_segmentation'
+    ]
+    sb.dataio.dataset.set_output_keys(datasets, output_keys)
 
     # 5. Fit encoder:
     phoneme_set = hparams['prepare']['phoneme_set_handler'].get_phoneme_set()
