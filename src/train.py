@@ -4,7 +4,7 @@ import importlib
 from hyperpyyaml import load_hyperpyyaml
 import speechbrain as sb
 
-from utils.dataio import data_io_prep
+from utils.data_io import data_io_prep
 
 
 if __name__ == '__main__':
