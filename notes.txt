@@ -1,0 +1,11 @@
+utils.data_utils.undo_padding
+	padded batch -> list of unpadded sample
+
+utils.edit_distance.op_table
+	two lists -> op table
+
+utils.edit_distance.alignment
+	op table -> alignment result
+
+utils.edit_distance.count_ops
+	op table -> # of I, D, S
