@@ -36,11 +36,13 @@ def binary_seq_md_scoring(prediction, target):
             raise TypeError(f'Unsupported input type: {type(x).__name__}')
         x = x.long().squeeze()
 
-        if x.ndim() > 1:
+        if x.ndim > 1:
             raise ValueError('Only one-dimension input is allowed')
 
         if not torch.all(torch.logical_or(x == 0, x == 1)):
             raise ValueError('Only binary input values are supported')
+
+        return x
 
 
     prediction = convert_to_tensor(prediction)
@@ -57,10 +59,10 @@ def binary_seq_md_scoring(prediction, target):
     REC = TN / (TN + FP + eps) * 100
 
     md_scores = {
-        'TP': TP,
-        'TN': TN,
-        'FP': FP,
-        'FN': FN,
+        # 'TP': TP,
+        # 'TN': TN,
+        # 'FP': FP,
+        # 'FN': FN,
         'ACC': ACC,
         'PRE': PRE,
         'REC': REC
@@ -126,7 +128,7 @@ def batch_seq_md_scoring(
     if batch_pred_md_lbl_seqs is None:
         batch_pred_md_lbl_seqs = generate_batch_md_lbls(batch_pred_phn_seqs, batch_gt_cnncl_seqs)
     if batch_gt_md_lbl_seqs is None:
-        batch_pred_md_lbl_seqs = generate_batch_md_lbls(batch_gt_phn_seqs, batch_gt_cnncl_seqs)
+        batch_gt_md_lbl_seqs = generate_batch_md_lbls(batch_gt_phn_seqs, batch_gt_cnncl_seqs)
 
     # compute MD scores for each sample in the batch
     if len(batch_pred_md_lbl_seqs) != len(batch_gt_md_lbl_seqs):
