@@ -16,7 +16,7 @@ dnn_blocks: 2
 dnn_neurons: 512
 
 # Outputs
-output_neurons: 41
+output_neurons: !ref <n_phonemes> + 2
 
 normalizer: !new:speechbrain.processing.features.InputNormalization
     norm_type: global

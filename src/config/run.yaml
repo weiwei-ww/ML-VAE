@@ -31,6 +31,7 @@ unk_index: 1
 
 # Feature parameters
 sample_rate: 16000
+hop_length: 10
 n_fft: 400
 n_mels: 40
 
@@ -42,6 +43,7 @@ augmentation: !new:speechbrain.lobes.augment.TimeDomainSpecAugment
 
 compute_features: !new:speechbrain.lobes.features.Fbank
     sample_rate: !ref <sample_rate>
+    hop_length: !ref <hop_length>
     n_fft: !ref <n_fft>
     n_mels: !ref <n_mels>
 
@@ -64,4 +66,5 @@ model: !PLACEHOLDER
     output_dir: !ref <output_dir>
     train_logger: !ref <train_logger>
     input_size: !ref <n_mels>
+    n_phonemes: !ref <n_phonemes>
 
