@@ -5,7 +5,7 @@ import torch
 
 def binary_seq_md_scoring(prediction, target):
     """
-    return MD scores of two binary sequences
+    Compute MD scores of two binary sequences.
 
     Parameters
     ----------
@@ -16,7 +16,7 @@ def binary_seq_md_scoring(prediction, target):
 
     Returns
     -------
-    md_score : dict
+    md_scores : dict
         a dictionary of MD scores
     """
     # # check input
@@ -56,7 +56,7 @@ def binary_seq_md_scoring(prediction, target):
     PRE = TN / (TN + FN + eps) * 100
     REC = TN / (TN + FP + eps) * 100
 
-    md_score = {
+    md_scores = {
         'TP': TP,
         'TN': TN,
         'FP': FP,
@@ -66,49 +66,75 @@ def binary_seq_md_scoring(prediction, target):
         'REC': REC
     }
 
-    return md_score
+    return md_scores
 
 
 def batch_seq_md_scoring(
-        batch_pred_md_lbls=None,
-        batch_pred_phns=None,
-        batch_gt_md_lbls=None,
-        batch_gt_phns=None,
-        batch_gt_cnncls=None
+        batch_pred_md_lbl_seqs=None,
+        batch_pred_phn_seqs=None,
+        batch_gt_md_lbl_seqs=None,
+        batch_gt_phn_seqs=None,
+        batch_gt_cnncl_seqs=None
 ):
+    """
+    Compute MD scores for a batch.
+
+    Parameters
+    ----------
+    batch_pred_md_lbl_seqs : list
+        list of predicted MD labels
+    batch_pred_phn_seqs : list
+        list of predicted phonemes
+    batch_gt_md_lbl_seqs : list
+        list of ground truth MD labels
+    batch_gt_phn_seqs : list
+        list of ground truth phonemes
+    batch_gt_cnncl_seqs : list
+        list of ground truth canonicals
+
+    Returns
+    -------
+    batch_md_scores : list
+        list of MD scores
+
+    """
     # check input
-    for x in [batch_pred_md_lbls, batch_pred_phns, batch_gt_md_lbls, batch_gt_phns, batch_gt_cnncls]:
+    for x in [batch_pred_md_lbl_seqs, batch_pred_phn_seqs, batch_gt_md_lbl_seqs, batch_gt_phn_seqs, batch_gt_cnncl_seqs]:
         if x is not None and not isinstance(x, list):
             raise TypeError(f'Input type must be list, not {type(x).__name__}')
 
-    # generate binary MD labels
-    def generate_batch_md_lbls(batch_phns, batch_cnncls):
+    # generate binary MD labels if not provided
+    def generate_batch_md_lbls(batch_phn_seqs, batch_cnncl_seqs):
         # check input
-        if batch_phns is None:
-            raise ValueError('batch_phns cannot be None')
-        if batch_cnncls is None:
-            raise ValueError('batch_cnncls cannot be None')
-        if len(batch_phns) != len(batch_cnncls):
-            raise ValueError(f'Inconsistent batch size: {len(batch_phns)} != {len(batch_cnncls)}')
+        if batch_phn_seqs is None:
+            raise ValueError('batch_phn_seqs cannot be None')
+        if batch_cnncl_seqs is None:
+            raise ValueError('batch_cnncl_seqs cannot be None')
+        if len(batch_phn_seqs) != len(batch_cnncl_seqs):
+            raise ValueError(f'Inconsistent batch size: {len(batch_phn_seqs)} != {len(batch_cnncl_seqs)}')
 
         # generate MD labels for each batch
-        batch_md_lbls = []
-        for phns, cnncls in zip(batch_phns, batch_cnncls):
-            if len(phns) != len(cnncls):
-                raise ValueError(f'Inconsistent sequence lengths: {len(phns)} != {len(cnncls)}')
+        batch_md_lbl_seqs = []
+        for phn_seq, cnncl_seq in zip(batch_phn_seqs, batch_cnncl_seqs):
+            if len(phn_seq) != len(cnncl_seq):
+                raise ValueError(f'Inconsistent sequence lengths: {len(phn_seq)} != {len(cnncl_seq)}')
             # 0: correct pronunciation; 1: mispronunciation
-            md_lbls = [int(p != c) for p, c in zip(phns, cnncls)]
-            batch_md_lbls.append(md_lbls)
-        return batch_md_lbls
+            md_lbl_seq = [int(p != c) for p, c in zip(phn_seq, cnncl_seq)]
+            batch_md_lbl_seqs.append(md_lbl_seq)
+        return batch_md_lbl_seqs
 
-    if batch_pred_md_lbls is None:
-        batch_pred_md_lbls = generate_batch_md_lbls(batch_pred_phns, batch_gt_cnncls)
-    if batch_gt_md_lbls is None:
-        batch_pred_md_lbls = generate_batch_md_lbls(batch_gt_phns, batch_gt_cnncls)
+    if batch_pred_md_lbl_seqs is None:
+        batch_pred_md_lbl_seqs = generate_batch_md_lbls(batch_pred_phn_seqs, batch_gt_cnncl_seqs)
+    if batch_gt_md_lbl_seqs is None:
+        batch_pred_md_lbl_seqs = generate_batch_md_lbls(batch_gt_phn_seqs, batch_gt_cnncl_seqs)
 
+    # compute MD scores for each sample in the batch
+    if len(batch_pred_md_lbl_seqs) != len(batch_gt_md_lbl_seqs):
+        raise ValueError(f'Inconsistent batch size: {len(batch_pred_md_lbl_seqs)} != {len(batch_gt_md_lbl_seqs)}')
 
+    batch_md_scores = []
+    for pred_md_lbl_seq, gt_md_lbl_seq in zip(batch_pred_md_lbl_seqs, batch_gt_md_lbl_seqs):
+        md_scores = binary_seq_md_scoring(pred_md_lbl_seq, gt_md_lbl_seq)
+        batch_md_scores.append(md_scores)
 
-
-
-
-# def generate_md_seqs(predict_seq, phoneme_seq, canonical_seq):
+    return batch_md_scores
