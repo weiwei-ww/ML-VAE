@@ -9,3 +9,10 @@ utils.edit_distance.alignment
 
 utils.edit_distance.count_ops
 	op table -> # of I, D, S
+
+
+utils.edit_distance.wer_details_by_utterance:
+	two dicts of sequences -> alignment details
+
+dataio.wer.print_alignments:
+	alignment details -> write alignment to file
