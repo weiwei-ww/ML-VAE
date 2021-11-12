@@ -95,10 +95,10 @@ def generate_json(json_path, ann_paths, phoneme_set_handler):
 
         # pronounced phoneme and segments
         phonemes = []
-        phoneme_segments = []
+        gt_segmentation = []
         for start_time, end_time, p in parsed_tg['phoneme']:
             phonemes.append(phoneme_set_handler.map_phoneme(p))
-            phoneme_segments.append([start_time, end_time])
+            gt_segmentation.append([start_time, end_time])
 
         # words
         words = []
@@ -111,9 +111,9 @@ def generate_json(json_path, ann_paths, phoneme_set_handler):
             'wav_path': wav_path,
             'duration': duration,
             'spk_id': spk_id,
-            'canonicals': canonicals,
-            'phonemes': phonemes,
-            'phn_segments': phoneme_segments,
+            'phoneme_list': phonemes,
+            'canonical_list': canonicals,
+            'gt_segmentation': gt_segmentation,
             'words': words,
             'word_segments': word_segments
         }

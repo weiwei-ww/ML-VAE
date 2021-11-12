@@ -156,15 +156,15 @@ def create_json(
             raise FileNotFoundError(err_msg)
 
         # Getting the phoneme and ground truth ends lists from the phn files
-        phonemes, phoneme_segments = get_phoneme_lists(phn_file, phoneme_set_handler)
+        phonemes, gt_segmentation = get_phoneme_lists(phn_file, phoneme_set_handler)
 
         json_dict[snt_id] = {
             'wav_path': wav_file,
             'duration': duration,
             'spk_id': spk_id,
-            'canonicals': phonemes,
-            'phonemes': phonemes,
-            'phoneme_segments': phoneme_segments,
+            'phoneme_list': phonemes,
+            'canonical_list': phonemes,
+            'gt_segmentation': gt_segmentation,
             'words': words,
             'word_segments': word_segments
         }

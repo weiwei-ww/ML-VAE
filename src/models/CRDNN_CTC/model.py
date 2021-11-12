@@ -13,22 +13,12 @@ class SBModel(sb.Brain):
         'Given an input batch it computes the phoneme probabilities.'
         batch = batch.to(self.device)
         if stage == sb.Stage.TRAIN:
-            wavs, wav_lens = batch['augmented_wav']
-            feats, feat_lens = batch['augmented_feat']
+            wavs, wav_lens = batch['aug_wav']
+            feats, feat_lens = batch['aug_feat']
         else:
             wavs, wav_lens = batch['wav']
             feats, feat_lens = batch['feat']
-        # Adding optional augmentation when specified:
-        # if stage == sb.Stage.TRAIN:
-        #     if hasattr(self.hparams, 'env_corrupt'):
-        #         wavs_noise = self.hparams.env_corrupt(wavs, wav_lens)
-        #         wavs = torch.cat([wavs, wavs_noise], dim=0)
-        #         wav_lens = torch.cat([wav_lens, wav_lens])
-        #     if hasattr(self.hparams, 'augmentation'):
-        #         wavs = self.hparams.augmentation(wavs, wav_lens)
-        #
-        # feats = self.hparams.compute_features(wavs)
-        # feats = self.modules.normalizer(feats, wav_lens)
+        gt_segmentations, gt_segmentation_lens = batch['gt_segmentation']
         out = self.modules.crdnn(feats)
         out = self.modules.output(out)
         pout = self.hparams.log_softmax(out)
@@ -38,14 +28,14 @@ class SBModel(sb.Brain):
     def compute_objectives(self, predictions, batch, stage):
         'Given the network predictions and targets computed the CTC loss.'
         pout, pout_lens = predictions
-        phns, phn_lens = batch['encoded_phonemes']
+        phns, phn_lens = batch['encoded_phoneme_list']
 
         if stage == sb.Stage.TRAIN and hasattr(self.hparams, 'env_corrupt'):
             phns = torch.cat([phns, phns], dim=0)
             phn_lens = torch.cat([phn_lens, phn_lens], dim=0)
 
         loss = self.hparams.compute_cost(pout, phns, pout_lens, phn_lens, self.label_encoder.get_blank_index())
-        self.ctc_metrics.append(batch.id, pout, phns, pout_lens, phn_lens)
+        self.ctc_metrics.append(batch['id'], pout, phns, pout_lens, phn_lens)
 
 
         if stage != sb.Stage.TRAIN:
