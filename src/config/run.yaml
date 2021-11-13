@@ -55,7 +55,7 @@ compute_features: !new:speechbrain.lobes.features.Fbank
 
 
 # Training parameters
-batch_size: 2
+batch_size: 8
 
 # Dataset and dataloader options
 sorting: descending # choose between ascending, descending and random
