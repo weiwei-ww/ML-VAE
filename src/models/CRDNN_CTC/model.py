@@ -1,8 +1,6 @@
 import functools
 
-
 import torch
-from torch.utils.tensorboard import SummaryWriter
 import speechbrain as sb
 import speechbrain.utils.data_utils
 
@@ -53,6 +51,7 @@ class SBModel(sb.Brain):
 
 
         # if stage != sb.Stage.TRAIN:
+
         sequences = sb.decoders.ctc_greedy_decode(
             pout, pout_lens, blank_id=self.label_encoder.get_blank_index()
         )
@@ -64,27 +63,28 @@ class SBModel(sb.Brain):
             ind2lab=self.label_encoder.decode_ndim,
         )
 
-        # pred_phns = sb.decoders.ctc_greedy_decode(
-        #     pout, pout_lens, blank_id=self.label_encoder.get_blank_index()
-        # )
-        #
-        # # unpad sequences
-        # gt_phn_seqs, gt_phn_seq_lens = batch['gt_phn_seq']
-        # gt_cnncl_seqs, gt_cnncl_seq_lens = batch['gt_cnncl_seq']
-        #
-        # gt_phn_seqs = sb.utils.data_utils.undo_padding(gt_phn_seqs, gt_phn_seq_lens)
-        # gt_cnncl_seqs = sb.utils.data_utils.undo_padding(gt_cnncl_seqs, gt_cnncl_seq_lens)
-        #
-        # # align sequences
-        # ali_pred_phn_seqs, ali_gt_phn_seqs, ali_gt_cnncl_seqs = \
-        #     utils.alignment.batch_align_sequences(pred_phns, gt_phn_seqs, gt_cnncl_seqs)
-        #
-        # self.md_stats.append(
-        #     batch['id'],
-        #     batch_pred_phn_seqs=ali_pred_phn_seqs,
-        #     batch_gt_phn_seqs=ali_gt_phn_seqs,
-        #     batch_gt_cnncl_seqs=ali_gt_cnncl_seqs
-        # )
+        if hasattr(self, 'md_stats'):
+            pred_phns = sb.decoders.ctc_greedy_decode(
+                pout, pout_lens, blank_id=self.label_encoder.get_blank_index()
+            )
+
+            # unpad sequences
+            gt_phn_seqs, gt_phn_seq_lens = batch['gt_phn_seq']
+            gt_cnncl_seqs, gt_cnncl_seq_lens = batch['gt_cnncl_seq']
+
+            gt_phn_seqs = sb.utils.data_utils.undo_padding(gt_phn_seqs, gt_phn_seq_lens)
+            gt_cnncl_seqs = sb.utils.data_utils.undo_padding(gt_cnncl_seqs, gt_cnncl_seq_lens)
+
+            # align sequences
+            ali_pred_phn_seqs, ali_gt_phn_seqs, ali_gt_cnncl_seqs = \
+                utils.alignment.batch_align_sequences(pred_phns, gt_phn_seqs, gt_cnncl_seqs)
+
+            self.md_stats.append(
+                batch['id'],
+                batch_pred_phn_seqs=ali_pred_phn_seqs,
+                batch_gt_phn_seqs=ali_gt_phn_seqs,
+                batch_gt_cnncl_seqs=ali_gt_cnncl_seqs
+            )
         # print(self.md_stats.summarize())
 
         return loss
@@ -97,9 +97,9 @@ class SBModel(sb.Brain):
         if stage == sb.Stage.TRAIN:
             self.train_loss = loss
         if stage == sb.Stage.VALID:
-            # old_lr = self.optimizer.state_dict()['param_groups'][0]['lr']
-            old_lr, new_lr = self.hparams.scheduler(per)
-            sb.nnet.schedulers.update_learning_rate(self.optimizer, new_lr)
+            old_lr = self.optimizer.state_dict()['param_groups'][0]['lr']
+            # old_lr, new_lr = self.hparams.scheduler(per)
+            # sb.nnet.schedulers.update_learning_rate(self.optimizer, new_lr)
             self.hparams.train_logger.log_stats(
                 stats_meta={'epoch': epoch, 'lr': old_lr},
                 train_stats={'loss': self.train_loss},
@@ -108,7 +108,6 @@ class SBModel(sb.Brain):
             self.checkpointer.save_and_keep_only(
                 meta={'PER': per}, min_keys=['PER'],
             )
-
         elif stage == sb.Stage.TEST:
             self.hparams.train_logger.log_stats(
                 stats_meta={'Epoch loaded': self.hparams.epoch_counter.current},
@@ -119,15 +118,26 @@ class SBModel(sb.Brain):
                 self.ctc_stats.write_stats(w)
                 w.write('\nPER stats:\n')
                 self.per_metrics.write_stats(w)
+
                 print('CTC and PER stats written to ', self.hparams.wer_file)
 
-
+            if hasattr(self, 'md_stats'):
+                with open(self.hparams.md_metrics_file, 'w') as w:
+                    md_summary = self.md_stats.summarize()
+                    for key in self.md_stats.summarize():
+                        w.write(f'MD_{key} = {md_summary[key]}\n')
+                    print('MD metrics written to ', self.hparams.md_metrics_file)
 
         tb_metrics = {}
         tb_metrics['loss'] = loss
         tb_metrics['PER'] = per
         if stage == sb.Stage.VALID:
             tb_metrics['lr'] = old_lr
+
+        if hasattr(self, 'md_stats'):
+            md_summary = self.md_stats.summarize()
+            for key in md_summary:
+                tb_metrics[f'MD_{key}'] = md_summary[key]
 
         # tensorboard logging
         if stage != sb.Stage.TEST:
