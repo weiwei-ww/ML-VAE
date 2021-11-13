@@ -23,7 +23,7 @@ from ruamel.yaml.comments import TaggedScalar, CommentedMap
 # NOTE: Empty dict as default parameter is fine here since overrides are never
 # modified
 def load_hyperpyyaml(
-    yaml_stream, overrides=None, overrides_must_match=True,
+    yaml_stream, overrides=None, overrides_must_match=True, extra_overrides=None
 ):
     r'''This function implements the HyperPyYAML syntax
 
@@ -300,10 +300,17 @@ def resolve_references(yaml_stream, overrides=None, overrides_must_match=False):
     ruamel_yaml = ruamel.yaml.YAML()
     preview = ruamel_yaml.load(yaml_stream)
 
-    if overrides is not None and overrides != "":
+    def handle_overrides(overrides):
         if isinstance(overrides, str):
             overrides = ruamel_yaml.load(overrides)
         recursive_update(preview, overrides, must_match=overrides_must_match)
+
+    if overrides and isinstance(overrides, list):
+        for o in overrides:
+            handle_overrides(o)
+    elif overrides:
+        handle_overrides(overrides)
+
     _walk_tree_and_resolve("root", preview, preview, {}, file_path)
 
     # Dump back to string so we can load with bells and whistles
