@@ -17,12 +17,12 @@ if __name__ == '__main__':
     # load extra overrides
     overrides = ruamel.yaml.YAML().load(overrides)
     extra_overrides = overrides.pop('extra_overrides', {})
+    # print(extra_overrides)
 
     # load hparams
     with open(hparams_file) as fin:
-        hparams = load_hyperpyyaml(fin, overrides)
+        hparams = load_hyperpyyaml(fin, [extra_overrides, overrides])
     recursive_update(hparams, extra_overrides)
-
 
     # json file preparation
     dataset_name = hparams['dataset']
