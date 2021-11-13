@@ -96,17 +96,10 @@ class SBModel(sb.Brain):
 
         if stage == sb.Stage.TRAIN:
             self.train_loss = loss
-
-        # tensorboard logging
-        if stage != sb.Stage.TEST:
-            stage_name = str(stage).split('.')[1].lower()
-            self.hparams.tb_writer.add_scalar(f'loss/{stage_name}', loss, global_step=epoch)
-            self.hparams.tb_writer.add_scalar(f'PER/{stage_name}', per, global_step=epoch)
-
-
         if stage == sb.Stage.VALID:
+            # old_lr = self.optimizer.state_dict()['param_groups'][0]['lr']
             old_lr, new_lr = self.hparams.scheduler(per)
-            # sb.nnet.schedulers.update_learning_rate(self.optimizer, new_lr)
+            sb.nnet.schedulers.update_learning_rate(self.optimizer, new_lr)
             self.hparams.train_logger.log_stats(
                 stats_meta={'epoch': epoch, 'lr': old_lr},
                 train_stats={'loss': self.train_loss},
@@ -127,4 +120,18 @@ class SBModel(sb.Brain):
                 w.write('\nPER stats:\n')
                 self.per_metrics.write_stats(w)
                 print('CTC and PER stats written to ', self.hparams.wer_file)
+
+
+
+        tb_metrics = {}
+        tb_metrics['loss'] = loss
+        tb_metrics['PER'] = per
+        if stage == sb.Stage.VALID:
+            tb_metrics['lr'] = old_lr
+
+        # tensorboard logging
+        if stage != sb.Stage.TEST:
+            stage_name = str(stage).split('.')[1].lower()
+            for key in tb_metrics:
+                self.hparams.tb_writer.add_scalar(f'{key}/{stage_name}', tb_metrics[key], global_step=epoch)
 
