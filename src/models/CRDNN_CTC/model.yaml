@@ -77,5 +77,6 @@ checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
 
 
 wer_file: !ref <output_dir>/wer.txt
+md_metrics_file: !ref <output_dir>/md_metrics.txt
 
 jit_module_keys: [crdnn]
