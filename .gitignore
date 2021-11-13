@@ -1,10 +1,9 @@
 .idea/
 __pycache__/
 
-results
+/script_*.sh
 
-dataset_timit
-original_dataset
-
-*.json
+/src/results
+/src/datasets/*/original_dataset
+/src/datasets/*/annotation/
 
