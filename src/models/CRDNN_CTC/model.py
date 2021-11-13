@@ -106,7 +106,7 @@ class SBModel(sb.Brain):
 
         if stage == sb.Stage.VALID:
             old_lr, new_lr = self.hparams.scheduler(per)
-            sb.nnet.schedulers.update_learning_rate(self.optimizer, new_lr)
+            # sb.nnet.schedulers.update_learning_rate(self.optimizer, new_lr)
             self.hparams.train_logger.log_stats(
                 stats_meta={'epoch': epoch, 'lr': old_lr},
                 train_stats={'loss': self.train_loss},
