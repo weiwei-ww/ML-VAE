@@ -118,6 +118,6 @@ def data_io_prep(hparams):
     label_encoder.update_from_iterable(phoneme_set, sequence_input=False)
     label_encoder.insert_blank(index=hparams['blank_index'])
 
-    print(datasets[0][0])
+    test = datasets[0][0]
 
     return train_dataset, valid_dataset, test_dataset, label_encoder
