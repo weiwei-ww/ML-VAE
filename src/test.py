@@ -1,7 +1,7 @@
 import sys
 import logging
 
-from prepare import prepare_experiment
+from prepare_experiment import prepare_experiment
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)

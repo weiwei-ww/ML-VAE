@@ -7,7 +7,7 @@ from hyperpyyaml.core import recursive_update
 import speechbrain as sb
 
 from utils.data_io import prepare_datasets
-from prepare import prepare_experiment
+from prepare_experiment import prepare_experiment
 
 
 if __name__ == '__main__':
