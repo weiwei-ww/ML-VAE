@@ -1,8 +1,19 @@
 import sys
-from hyperpyyaml import load_hyperpyyaml
-import speechbrain as sb
+import logging
+
+from prepare import prepare_experiment
 
 if __name__ == '__main__':
-    with open('/home/weiwei/research/codes/MD-VAE-SpeechBrain/src/config/run.yaml') as f:
-        hparams = load_hyperpyyaml(f, 'dataset: TIMIT')
-    print(hparams)
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+
+    prepared = prepare_experiment(sys.argv[1:], prepare_exp_dir=False)
+    hparams = prepared['hparams']
+    train_dataset, valid_dataset, test_dataset = prepared['datasets']
+    model = prepared['model']
+
+    # Test
+    model.evaluate(
+        test_dataset,
+        min_key='PER',
+        test_loader_kwargs=hparams['test_dataloader_opts'],
+    )
