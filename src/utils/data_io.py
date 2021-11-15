@@ -1,3 +1,5 @@
+import logging
+from tqdm import tqdm
 import librosa
 
 import torch
@@ -8,6 +10,39 @@ import speechbrain.dataio.encoder
 import speechbrain.utils.data_pipeline
 
 from utils.preprocessing import generate_flvl_annotation
+
+logger = logging.getLogger(__name__)
+
+
+def prepare_datasets(hparams):
+    # skip = True
+    # for set_name in ['train', 'valid', 'test']:
+    #     pkl_path = Path(hparams['prepare']['dataset_dir']).parent / 'prepared_datasets' / f'{set_name}.pkl'
+    #     if not pkl_path.exists():
+    #         skip = False
+    #         break
+    logger.info('Preparing datasets.')
+    datasets, label_encoder = data_io_prep(hparams)
+
+    logger.info('Preparing computed datasets.')
+    computed_datasets = []
+    output_keys = ['id']
+    for dataset in datasets:
+        computed_dataset_dict = {}
+        for data_sample in tqdm(dataset):
+            data_id = data_sample['id']
+            data_sample_dict = {}
+            for key in data_sample:
+                if key != 'id':
+                    data_sample_dict[key] = data_sample[key]
+            computed_dataset_dict[data_id] = data_sample_dict
+            if len(output_keys) == 1:
+                output_keys.extend(data_sample_dict.keys())
+        computed_dataset = sb.dataio.dataset.DynamicItemDataset(computed_dataset_dict, output_keys=output_keys)
+        computed_datasets.append(computed_dataset)
+
+    test = computed_datasets[0][0]
+    return computed_datasets, label_encoder
 
 
 def data_io_prep(hparams):
@@ -119,5 +154,9 @@ def data_io_prep(hparams):
     label_encoder.insert_blank(index=hparams['blank_index'])
 
     test = datasets[0][0]
+    # for key in test:
+    #     print('-' * 500)
+    #     print(key)
+    #     print(test[key])
 
-    return train_dataset, valid_dataset, test_dataset, label_encoder
+    return (train_dataset, valid_dataset, test_dataset), label_encoder
