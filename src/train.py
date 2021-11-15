@@ -24,10 +24,3 @@ if __name__ == '__main__':
         train_loader_kwargs=hparams['train_dataloader_opts'],
         valid_loader_kwargs=hparams['valid_dataloader_opts'],
     )
-
-    # Test
-    model.evaluate(
-        test_dataset,
-        min_key='PER',
-        test_loader_kwargs=hparams['test_dataloader_opts'],
-    )
