@@ -78,14 +78,17 @@ for p1, p2, p3 in mapping_lines:
 
 def get_phoneme_set(n_phonemes=39):
     assert n_phonemes in [60, 48, 39]
-    phoneme_set = set()
+    phoneme_set = []
     for p1, p2, p3 in mapping_lines:
+        p = None
         if n_phonemes == 60:
-            phoneme_set.add(p1)
-        if n_phonemes == 48:
-            phoneme_set.add(p2)
-        if n_phonemes == 39:
-            phoneme_set.add(p3)
+            p = p1
+        elif n_phonemes == 48:
+            p = p2
+        elif n_phonemes == 39:
+            p = p3
+        if p not in phoneme_set:
+            phoneme_set.append(p)
 
     return phoneme_set
 
