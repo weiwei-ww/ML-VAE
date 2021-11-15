@@ -1,5 +1,7 @@
 import logging
 from tqdm import tqdm
+import pickle
+from pathlib import Path
 import librosa
 
 import torch
@@ -26,18 +28,31 @@ def prepare_datasets(hparams):
 
     logger.info('Preparing computed datasets.')
     computed_datasets = []
+    set_names = ['train', 'valid', 'test']
     output_keys = ['id']
-    for dataset in datasets:
-        computed_dataset_dict = {}
-        for data_sample in tqdm(dataset):
-            data_id = data_sample['id']
-            data_sample_dict = {}
-            for key in data_sample:
-                if key != 'id':
-                    data_sample_dict[key] = data_sample[key]
-            computed_dataset_dict[data_id] = data_sample_dict
-            if len(output_keys) == 1:
-                output_keys.extend(data_sample_dict.keys())
+    for set_name, dataset in zip(set_names, datasets):
+        pkl_path = Path(hparams['prepare']['dataset_dir']).parent / 'computed_dataset' / f'{set_name}.pkl'
+        if not pkl_path.exists():
+            logger.info(f'Computed dataset for {set_name} set not exists, start preparing it')
+            pkl_path.parent.mkdir(exist_ok=True)
+            computed_dataset_dict = {}
+            for data_sample in tqdm(dataset):
+                data_id = data_sample['id']
+                data_sample_dict = {}
+                for key in data_sample:
+                    if key != 'id':
+                        data_sample_dict[key] = data_sample[key]
+                computed_dataset_dict[data_id] = data_sample_dict
+            with open(pkl_path, 'wb') as f:
+                pickle.dump(computed_dataset_dict, f)
+        else:
+            logger.info(f'Load computed dataset for {set_name} set')
+            with open(pkl_path, 'rb') as f:
+                computed_dataset_dict = pickle.load(f)
+
+        if len(output_keys) == 1:
+            output_keys.extend(computed_dataset_dict[list(computed_dataset_dict.keys())[0]].keys())
+
         computed_dataset = sb.dataio.dataset.DynamicItemDataset(computed_dataset_dict, output_keys=output_keys)
         computed_datasets.append(computed_dataset)
 
