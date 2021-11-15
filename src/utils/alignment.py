@@ -53,7 +53,7 @@ def align_sequences(a, b, c=None, empty_value=-1):
         ali_a.append(a[a_index] if a_index is not None else empty_value)
         ali_b.append(b[b_index] if b_index is not None else empty_value)
         if c is not None:
-            ali_c.append(b[b_index] if b_index is not None else empty_value)
+            ali_c.append(c[b_index] if b_index is not None else empty_value)
 
     if c is not None:
         assert len(ali_a) == len(ali_b) == len(ali_c)
