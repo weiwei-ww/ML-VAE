@@ -6,4 +6,4 @@ __pycache__/
 /src/results
 /src/datasets/*/original_dataset
 /src/datasets/*/annotation/
-
+/src/datasets/*/computed_dataset
