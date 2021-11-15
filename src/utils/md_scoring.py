@@ -59,10 +59,6 @@ def binary_seq_md_scoring(prediction, target):
     REC = TN / (TN + FP + eps) * 100
 
     md_scores = {
-        # 'TP': TP,
-        # 'TN': TN,
-        # 'FP': FP,
-        # 'FN': FN,
         'ACC': ACC,
         'PRE': PRE,
         'REC': REC

@@ -17,12 +17,6 @@ logger = logging.getLogger(__name__)
 
 
 def prepare_datasets(hparams):
-    # skip = True
-    # for set_name in ['train', 'valid', 'test']:
-    #     pkl_path = Path(hparams['prepare']['dataset_dir']).parent / 'prepared_datasets' / f'{set_name}.pkl'
-    #     if not pkl_path.exists():
-    #         skip = False
-    #         break
     logger.info('Preparing datasets.')
     datasets, label_encoder = data_io_prep(hparams)
 
