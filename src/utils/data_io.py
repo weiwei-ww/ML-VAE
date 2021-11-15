@@ -27,7 +27,7 @@ def prepare_datasets(hparams):
     for set_name, dataset in zip(set_names, datasets):
         pkl_path = Path(hparams['prepare']['dataset_dir']).parent / 'computed_dataset' / f'{set_name}.pkl'
         if not pkl_path.exists():
-            logger.info(f'Computed dataset for {set_name} set not exists, start preparing it')
+            logger.info(f'Computed dataset for {set_name} set does not exist, start preparing it')
             pkl_path.parent.mkdir(exist_ok=True)
             computed_dataset_dict = {}
             for data_sample in tqdm(dataset):
