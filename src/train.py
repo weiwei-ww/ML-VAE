@@ -6,7 +6,7 @@ from hyperpyyaml import load_hyperpyyaml
 from hyperpyyaml.core import recursive_update
 import speechbrain as sb
 
-from utils.data_io import data_io_prep
+from utils.data_io import prepare_datasets
 
 
 if __name__ == '__main__':
@@ -28,8 +28,15 @@ if __name__ == '__main__':
     dataset_name = hparams['dataset']
     importlib.import_module(f'datasets.{dataset_name}.prepare').prepare(**hparams['prepare'])
 
+    # create experiment directory
+    sb.create_experiment_directory(
+        experiment_directory=hparams['output_dir'],
+        hyperparams_to_save=hparams_file,
+        overrides=overrides
+    )
+
     # Load parsed dataset
-    train_dataset, valid_dataset, test_dataset, label_encoder = data_io_prep(hparams)
+    (train_dataset, valid_dataset, test_dataset), label_encoder = prepare_datasets(hparams)
 
     # initialize model
     model_class = hparams['model_class']
@@ -41,13 +48,6 @@ if __name__ == '__main__':
         hparams=hparams['model'],
         run_opts=run_opts,
         checkpointer=hparams['model']['checkpointer'],
-    )
-
-    # create experiment directory
-    sb.create_experiment_directory(
-        experiment_directory=hparams['output_dir'],
-        hyperparams_to_save=hparams_file,
-        overrides=overrides
     )
 
 
