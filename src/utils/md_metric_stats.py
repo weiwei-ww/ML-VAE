@@ -17,7 +17,7 @@ class MDMetricStats:
         if len(self.md_metric_keys) == 0:
             self.md_metric_keys = list(self.scores_list[0].keys())
 
-    def summarize(self):
+    def summarize(self, field=None):
         if len(self.md_metric_keys) == 0:
             raise ValueError('No metrics saved yet')
 
@@ -31,4 +31,7 @@ class MDMetricStats:
         REC = mean_scores['REC']
         mean_scores['F1'] = (2 * PRE * REC) / (PRE + REC + eps)
 
-        return mean_scores
+        if field is None:
+            return mean_scores
+        else:
+            return mean_scores[field]
