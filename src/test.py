@@ -11,9 +11,9 @@ if __name__ == '__main__':
     train_dataset, valid_dataset, test_dataset = prepared['datasets']
     model = prepared['model']
 
-    # Test
+    # test the model
     model.evaluate(
         test_dataset,
-        min_key='PER',
+        min_key=hparams['model']['min_key'],
         test_loader_kwargs=hparams['test_dataloader_opts'],
     )

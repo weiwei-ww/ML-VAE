@@ -31,7 +31,15 @@ class MDMetricStats:
         REC = mean_scores['REC']
         mean_scores['F1'] = (2 * PRE * REC) / (PRE + REC + eps)
 
+        for key in mean_scores:
+            mean_scores[key] = round(mean_scores[key].item(), 2)
+
         if field is None:
             return mean_scores
         else:
             return mean_scores[field]
+
+    def write_stats(self, f):
+        scores = self.summarize()
+        f.write('\t'.join([str(value) for key, value in scores.items()]))
+
