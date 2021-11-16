@@ -62,8 +62,8 @@ class MDModel(sb.Brain):
             test_output_dir.mkdir(exist_ok=True)
 
             # log test metrics
-            per = self.stats_loggers['per_stats'].summarize('error_rate')
-            logger.info(f'Best epoch: {self.hparams.epoch_counter.current}, loss: {stage_loss}, PER: {per}')
+            log_str = ', '.join([f'{k}: {v}' for k, v in log_metrics.items()])
+            logger.info(f'Best epoch: {self.hparams.epoch_counter.current}, {log_str}')
             metric_values = []
             with open(test_output_dir / 'test_metrics.txt', 'w') as f:
                 for metric_key, metric_value in log_metrics.items():
