@@ -3,6 +3,9 @@ __pycache__/
 
 /TIMIT
 
+/delete_checkpoints.py
+/valid_model_names.txt
+
 /script_*.sh
 
 /src/results
