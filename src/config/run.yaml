@@ -50,7 +50,6 @@ test_dataloader_opts:
 output_dir: !ref results/<model_name>
 model: !PLACEHOLDER
     output_dir: !ref <output_dir>
-    train_logger: !ref <train_logger>
     input_size: !ref <n_mels>
     n_phonemes: !ref <n_phonemes>
 
