@@ -69,7 +69,7 @@ class MDModel(sb.Brain):
                 for metric_key, metric_value in log_metrics.items():
                     f.write(f'{metric_key}: {metric_value}\n')
                     metric_values.append(str(metric_value))
-                f.write('\t'.join(metric_values))
+                f.write('\t'.join(metric_values) + '\n')
                 logger.info(f'Test metrics saved to {f.name}')
 
             # save all stats loggers

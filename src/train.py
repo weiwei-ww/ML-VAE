@@ -1,5 +1,7 @@
 import sys
 
+import torch.autograd
+
 from prepare_experiment import prepare_experiment
 
 
@@ -10,6 +12,7 @@ if __name__ == '__main__':
     model = prepared['model']
 
     # fit the model
+    # with torch.autograd.detect_anomaly():
     model.fit(
         hparams['model']['epoch_counter'],
         train_dataset,

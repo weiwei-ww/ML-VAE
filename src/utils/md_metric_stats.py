@@ -41,5 +41,5 @@ class MDMetricStats:
 
     def write_stats(self, f):
         scores = self.summarize()
-        f.write('\t'.join([str(value) for key, value in scores.items()]))
+        f.write('\t'.join([str(value) for key, value in scores.items()]) + '\n')
 
