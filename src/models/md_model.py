@@ -53,8 +53,14 @@ class MDModel(sb.Brain):
 
             # save checkpoint after the VALID stage
             if stage == sb.Stage.VALID:
+                max_keys = []
+                min_keys = []
+                if hasattr(self.hparams, 'max_key'):
+                    max_keys.append(self.hparams.max_key)
+                if hasattr(self.hparams, 'min_key'):
+                    max_keys.append(self.hparams.min_key)
                 self.checkpointer.save_and_keep_only(
-                    meta=log_metrics, min_keys=[self.hparams.min_key],
+                    meta=log_metrics, max_keys=max_keys, min_keys=min_keys
                 )
 
         if stage == sb.Stage.TEST:
@@ -66,10 +72,11 @@ class MDModel(sb.Brain):
             logger.info(f'Best epoch: {self.hparams.epoch_counter.current}, {log_str}')
             metric_values = []
             with open(test_output_dir / 'test_metrics.txt', 'w') as f:
+                f.write(f'Epoch: {epoch}')
                 for metric_key, metric_value in log_metrics.items():
                     f.write(f'{metric_key}: {metric_value}\n')
                     metric_values.append(str(metric_value))
-                f.write('\t'.join(metric_values) + '\n')
+                f.write(f'Epoch: {epoch}' + '\t'.join(metric_values) + '\n')
                 logger.info(f'Test metrics saved to {f.name}')
 
             # save all stats loggers

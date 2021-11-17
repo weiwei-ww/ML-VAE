@@ -14,6 +14,7 @@ if __name__ == '__main__':
     # test the model
     model.evaluate(
         test_dataset,
-        min_key=hparams['model']['min_key'],
+        max_key=hparams['model'].get('max_key'),
+        min_key=hparams['model'].get('min_key'),
         test_loader_kwargs=hparams['test_dataloader_opts'],
     )
