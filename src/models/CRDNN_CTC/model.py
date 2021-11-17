@@ -25,12 +25,13 @@ class SBModel(MDModel):
 
     def compute_forward(self, batch, stage):
         batch = batch.to(self.device)
-        if stage == sb.Stage.TRAIN:
-            wavs, wav_lens = batch['aug_wav']
-            feats, feat_lens = batch['aug_feat']
-        else:
-            wavs, wav_lens = batch['wav']
-            feats, feat_lens = batch['feat']
+        wavs, wav_lens = batch['wav']
+        feats, feat_lens = batch['feat']
+
+        # feature normalization
+        current_epoch = self.hparams.epoch_counter.current
+        feats = self.hparams.normalizer(feats, feat_lens, epoch=current_epoch)
+
         out = self.modules.crdnn(feats)
         out = self.modules.output(out)
         pout = self.hparams.log_softmax(out)
