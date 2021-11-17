@@ -3,6 +3,7 @@ __pycache__/
 
 /TIMIT
 
+/credentials.json
 /delete_checkpoints.py
 /valid_model_names.txt
 
