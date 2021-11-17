@@ -19,6 +19,10 @@ class MDModel(sb.Brain):
         self.train_logger = FileTrainLogger(save_file=train_logger_save_file)
         self.tb_writer = SummaryWriter(log_dir=self.hparams.output_dir)
 
+        logger.info(str(self.modules))
+        with open(train_logger_save_file, 'w') as f:
+            f.write(str(self.modules) + '\n')
+
     def on_stage_start(self, stage, epoch=None):
         # initialize metric stats
         self.stats_loggers = {}
@@ -28,6 +32,9 @@ class MDModel(sb.Brain):
         if log_metrics is None:
             log_metrics = {}
         stage_name = str(stage).split('.')[1].lower()
+
+        if epoch is None:
+            epoch = self.hparams.epoch_counter.current
 
         # get metrics
         log_metrics['loss'] = round(stage_loss, 3)
@@ -69,14 +76,14 @@ class MDModel(sb.Brain):
 
             # log test metrics
             log_str = ', '.join([f'{k}: {v}' for k, v in log_metrics.items()])
-            logger.info(f'Best epoch: {self.hparams.epoch_counter.current}, {log_str}')
+            logger.info(f'Best epoch: {epoch}, {log_str}')
             metric_values = []
             with open(test_output_dir / 'test_metrics.txt', 'w') as f:
-                f.write(f'Epoch: {epoch}')
+                f.write(f'Epoch: {epoch}\n')
                 for metric_key, metric_value in log_metrics.items():
                     f.write(f'{metric_key}: {metric_value}\n')
                     metric_values.append(str(metric_value))
-                f.write(f'Epoch: {epoch}' + '\t'.join(metric_values) + '\n')
+                f.write(f'Epoch: {epoch}\t' + '\t'.join(metric_values) + '\n')
                 logger.info(f'Test metrics saved to {f.name}')
 
             # save all stats loggers
