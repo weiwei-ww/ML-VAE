@@ -47,7 +47,7 @@ def prepare_experiment(args, prepare_exp_dir):
     model = SBModel(
         label_encoder=label_encoder,
         modules=hparams['model']['modules'],
-        opt_class=hparams['model']['opt_class'],
+        opt_class=hparams['model']['optimizer'],
         hparams=hparams['model'],
         run_opts=run_opts,
         checkpointer=hparams['model']['checkpointer'],

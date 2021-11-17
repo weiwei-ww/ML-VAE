@@ -42,7 +42,7 @@ output: !new:speechbrain.nnet.linear.Linear
 log_softmax: !new:speechbrain.nnet.activations.Softmax
     apply_log: True
 
-opt_class: !name:torch.optim.Adadelta
+optimizer: !name:torch.optim.Adadelta
     rho: 0.95
     lr: !ref <lr>
     eps: 1.e-8
