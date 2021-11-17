@@ -48,7 +48,8 @@ class SBModel(MDModel):
             flvl_gt_md_lbl_seqs, flvl_gt_md_lbl_seq_lens = batch['flvl_gt_md_lbl_seq']
 
         # compute BCE loss
-        loss_fn = functools.partial(F.binary_cross_entropy_with_logits, reduction='none')
+        pos_weight = torch.tensor([1, 10]).type(out.dtype).to(out.device)
+        loss_fn = functools.partial(F.binary_cross_entropy_with_logits, reduction='none', pos_weight=pos_weight)
         targets = torch.stack([1 - flvl_gt_md_lbl_seqs, flvl_gt_md_lbl_seqs], dim=-1).type(out.dtype)
         loss = compute_masked_loss(loss_fn, out, targets)
 
