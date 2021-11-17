@@ -1,0 +1,83 @@
+n_epochs: 50
+lr: 1.0
+
+epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter
+    limit: !ref <n_epochs>
+
+# Model parameters
+lstm_hidden_size: 512
+lstm_num_layers: 4
+fc_size: 64
+
+
+
+activation: !name:torch.nn.LeakyReLU
+dropout: 0.15
+cnn_blocks: 2
+cnn_channels: (128, 256)
+cnn_kernelsize: (3, 3)
+rnn_layers: 4
+rnn_neurons: 512
+rnn_bidirectional: True
+dnn_blocks: 2
+dnn_neurons: 512
+
+
+output_size: 2
+
+normalizer: !new:speechbrain.processing.features.InputNormalization
+    norm_type: global
+
+lstm: !new:torch.nn.LSTM
+    input_size: !ref <input_size>
+    hidden_size: !ref <lstm_hidden_size>
+    num_layers: !ref <lstm_num_layers>
+
+fc: !new:blocks.fc_block.FCBlock
+    input_size: !ref <lstm_hidden_size>
+    fc_size: !ref <fc_size>
+
+output: !new:torch.nn.Linear
+    in_features: !ref <fc_size>
+    out_features: !ref <output_size>
+
+log_softmax: !new:speechbrain.nnet.activations.Softmax
+    apply_log: True
+
+optimizer: !name:torch.optim.Adadelta
+    rho: 0.95
+    lr: !ref <lr>
+
+modules:
+    normalizer: !ref <normalizer>
+    lstm: !ref <lstm>
+    fc: !ref <fc>
+    output: !ref <output>
+
+
+compute_cost: !name:speechbrain.nnet.losses.ctc_loss
+ctc_stats: !name:speechbrain.utils.metric_stats.MetricStats
+per_stats: !name:speechbrain.utils.metric_stats.ErrorRateStats
+md_stats: !name:utils.md_metric_stats.MDMetricStats
+
+
+checkpoints_dir: !ref <output_dir>/checkpoints
+checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
+    checkpoints_dir: !ref <checkpoints_dir>
+    recoverables:
+        normalizer: !ref <normalizer>
+        lstm: !ref <lstm>
+        fc: !ref <fc>
+        output: !ref <output>
+        optimizer: !ref <optimizer>
+        epoch_counter: !ref <epoch_counter>
+
+
+metric_keys:
+#    - per.error_rate
+    - flvl_md.ACC
+    - flvl_md.PRE
+    - flvl_md.REC
+    - flvl_md.F1
+
+min_key: flvl_md.F1
