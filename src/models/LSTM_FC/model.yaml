@@ -9,19 +9,7 @@ lstm_hidden_size: 512
 lstm_num_layers: 4
 fc_size: 64
 
-
-
-activation: !name:torch.nn.LeakyReLU
-dropout: 0.15
-cnn_blocks: 2
-cnn_channels: (128, 256)
-cnn_kernelsize: (3, 3)
-rnn_layers: 4
-rnn_neurons: 512
-rnn_bidirectional: True
-dnn_blocks: 2
-dnn_neurons: 512
-
+misp_weight: 100
 
 output_size: 2
 
@@ -44,8 +32,8 @@ output: !new:torch.nn.Linear
 log_softmax: !new:speechbrain.nnet.activations.Softmax
     apply_log: True
 
-optimizer: !name:torch.optim.Adadelta
-    rho: 0.95
+optimizer: !name:torch.optim.Adam
+#    rho: 0.95
     lr: !ref <lr>
 
 modules:
@@ -79,4 +67,4 @@ metric_keys:
     - flvl_md.REC
     - flvl_md.F1
 
-min_key: flvl_md.F1
+max_key: flvl_md.F1
