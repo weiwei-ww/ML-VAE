@@ -51,6 +51,14 @@ def prepare_datasets(hparams):
         computed_datasets.append(computed_dataset)
 
     test = computed_datasets[0][0]
+    # for dataset in computed_datasets:
+    #     for data_sample in dataset:
+    #         n_frames = data_sample['feat'].shape[0]
+    #         for key in data_sample:
+    #             if key.startswith('flvl_'):
+    #                 print(key, data_sample[key].shape[0])
+    #                 assert data_sample[key].shape[0] == n_frames
+
     return computed_datasets, label_encoder
 
 
