@@ -30,7 +30,7 @@ def prepare_experiment(args, prepare_exp_dir):
         sb.create_experiment_directory(
             experiment_directory=hparams['output_dir'],
             hyperparams_to_save=hparams_file,
-            overrides=overrides
+            overrides=[extra_overrides, overrides]
         )
 
     # json file preparation
