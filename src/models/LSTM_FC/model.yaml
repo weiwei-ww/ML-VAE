@@ -69,7 +69,6 @@ checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
         lstm: !ref <lstm>
         fc: !ref <fc>
         output: !ref <output>
-        optimizer: !ref <optimizer>
         epoch_counter: !ref <epoch_counter>
 
 
