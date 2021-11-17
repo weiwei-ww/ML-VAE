@@ -24,10 +24,6 @@ n_mels: 40
 
 blank_index: 0
 
-#augmentation: !new:speechbrain.lobes.augment.TimeDomainSpecAugment
-#    sample_rate: !ref <sample_rate>
-#    speeds: [95, 100, 105]
-
 compute_features: !new:speechbrain.lobes.features.Fbank
     sample_rate: !ref <sample_rate>
     hop_length: !ref <hop_length>
