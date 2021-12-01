@@ -18,7 +18,7 @@ prepare:
 
 # Feature parameters
 sample_rate: 16000
-hop_length: 10
+hop_length: 20
 n_fft: 400
 n_mels: 40
 
