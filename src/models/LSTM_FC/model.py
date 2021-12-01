@@ -28,7 +28,7 @@ class SBModel(MDModel):
 
         out = self.modules['lstm'](feats)[0]
         out = self.modules['fc'](out)
-        out = self.modules['output'](out)
+        # out = self.modules['output'](out)
 
         predictions = {
             'out': out,
