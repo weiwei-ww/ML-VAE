@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 
+import torch
 from torch.utils.tensorboard import SummaryWriter
 import speechbrain as sb
 from speechbrain.utils.train_logger import FileTrainLogger
@@ -12,6 +13,76 @@ class MDModel(sb.Brain):
     def __init__(self, label_encoder, **kwargs):
         super(MDModel, self).__init__(**kwargs)
         self.label_encoder = label_encoder
+
+    def init_optimizers(self):
+        """
+        Initialize multiple optimizers.
+        """
+        if hasattr(self.hparams, 'optimizers'):
+            opt_info_dict = self.hparams.optimizers
+            if type(opt_info_dict) is list:
+                opt_info_dict = {f'optimizer_{i}': opt_info for i, opt_info in enumerate(opt_info_dict)}
+        elif hasattr(self.hparams, 'optimizer'):
+            opt_info_dict = {'optimizer': self.hparams.optimizer}
+        else:
+            raise ValueError('No optimizers defined.')
+
+        # self.optimizers = {key: value() for key, value in opt_classes.items()}
+
+        self.optimizers = {}
+        for key, opt_info in opt_info_dict.items():
+            if type(opt_info) is dict:
+                opt_class = opt_info['opt_class']
+                if 'modules' in opt_info:
+                    params = []
+                    for module_name in opt_info['modules']:
+                        params += list(self.modules[module_name].parameters())
+                else:
+                    params = self.modules.parameters()
+                optimizer = opt_class(params)
+            else:
+                optimizer = opt_info(self.modules.parameters())
+            self.optimizers[key] = optimizer
+
+        if self.checkpointer is not None:
+            for key, optimizer in self.optimizers.items():
+                self.checkpointer.add_recoverable(key, optimizer)
+
+    def fit_batch(self, batch):
+        """
+        Overwritten for multiple optimizers.
+        """
+        # Managing automatic mixed precision
+        optimizers = [optimizer for _, optimizer in self.optimizers.items()]
+        if self.auto_mix_prec:
+            for optimizer in optimizers:
+                optimizer.zero_grad()
+
+            with torch.cuda.amp.autocast():
+                outputs = self.compute_forward(batch, sb.Stage.TRAIN)
+                loss = self.compute_objectives(outputs, batch, sb.Stage.TRAIN)
+            self.scaler.scale(loss).backward()
+
+            for optimizer in optimizers:
+                self.scaler.unscale_(optimizer)
+
+            if self.check_gradients(loss):
+                for optimizer in optimizers:
+                    self.scaler.step(optimizer)
+
+            self.scaler.update()
+        else:
+            outputs = self.compute_forward(batch, sb.Stage.TRAIN)
+            loss = self.compute_objectives(outputs, batch, sb.Stage.TRAIN)
+            loss.backward()
+
+            if self.check_gradients(loss):
+                for optimizer in optimizers:
+                    optimizer.step()
+            for optimizer in optimizers:
+                optimizer.zero_grad()
+
+        return loss.detach().cpu()
 
     def on_fit_start(self):
         super(MDModel, self).on_fit_start()
@@ -47,9 +118,9 @@ class MDModel(sb.Brain):
 
         if stage == sb.Stage.TRAIN or stage == sb.Stage.VALID:
             # log stats
-            lr = self.optimizer.state_dict()['param_groups'][0]['lr']
+            # lr = self.optimizer.state_dict()['param_groups'][0]['lr']
             train_logger_stats = {
-                'stats_meta': {'stage': stage_name, 'epoch': epoch, 'lr': lr},
+                'stats_meta': {'stage': stage_name, 'epoch': epoch},
                 f'{stage_name}_stats': log_metrics
             }
             self.train_logger.log_stats(**train_logger_stats)
