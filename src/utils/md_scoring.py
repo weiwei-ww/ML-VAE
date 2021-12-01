@@ -48,6 +48,9 @@ def binary_seq_md_scoring(prediction, target):
     prediction = convert_to_tensor(prediction)
     target = convert_to_tensor(target)
 
+    if abs(len(prediction) - len(target)) > 0:
+        raise ValueError(f'Inconsistent lengths for prediction and target sequences: {len(prediction)} != {len(target)}')
+
     TP = torch.sum((1 - prediction) * (1 - target))
     TN = torch.sum(prediction * target)
     FP = torch.sum((1 - prediction) * target)
