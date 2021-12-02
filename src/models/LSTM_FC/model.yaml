@@ -1,23 +1,25 @@
 n_epochs: 50
-lr: 1.0
 
 epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter
     limit: !ref <n_epochs>
 
-# Model parameters
-lstm_hidden_size: 1024
-lstm_num_layers: 4
-lstm_dropout: 0.1
-fc_size: 64
-fc_dropout: 0
-
-misp_weight: 10
-
-output_size: 2
+checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
+    checkpoints_dir: !ref <output_dir>/checkpoints
+    recoverables:
+        normalizer: !ref <normalizer>
+        lstm: !ref <lstm>
+        fc: !ref <fc>
+        epoch_counter: !ref <epoch_counter>
 
 normalizer: !new:speechbrain.processing.features.InputNormalization
     norm_type: global
 
+# model parameters
+misp_weight: 10
+
+lstm_hidden_size: 1024
+lstm_num_layers: 4
+lstm_dropout: 0.1
 lstm: !new:torch.nn.LSTM
     batch_first: True
     input_size: !ref <input_size>
@@ -25,8 +27,10 @@ lstm: !new:torch.nn.LSTM
     num_layers: !ref <lstm_num_layers>
     dropout: !ref <lstm_dropout>
 
+fc_size: 64
+fc_dropout: 0
+output_size: 2
 fc: !new:blocks.fc_block.FCBlock
-#    input_size:
     fc_sizes:
         - !ref <lstm_hidden_size>
         - !ref <fc_size>
@@ -34,43 +38,21 @@ fc: !new:blocks.fc_block.FCBlock
         - !ref <output_size>
     dropout: !ref <fc_dropout>
 
-#output: !new:torch.nn.Linear
-#    in_features: !ref <fc_size>
-#    out_features: !ref <output_size>
 
 log_softmax: !new:speechbrain.nnet.activations.Softmax
     apply_log: True
 
+lr: 1.0
 optimizer: !name:torch.optim.Adam
-#    rho: 0.95
     lr: !ref <lr>
 
 modules:
     normalizer: !ref <normalizer>
     lstm: !ref <lstm>
     fc: !ref <fc>
-#    output: !ref <output>
 
-
-compute_cost: !name:speechbrain.nnet.losses.ctc_loss
-ctc_stats: !name:speechbrain.utils.metric_stats.MetricStats
-per_stats: !name:speechbrain.utils.metric_stats.ErrorRateStats
-md_stats: !name:utils.md_metric_stats.MDMetricStats
-
-
-checkpoints_dir: !ref <output_dir>/checkpoints
-checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
-    checkpoints_dir: !ref <checkpoints_dir>
-    recoverables:
-        normalizer: !ref <normalizer>
-        lstm: !ref <lstm>
-        fc: !ref <fc>
-#        output: !ref <output>
-        epoch_counter: !ref <epoch_counter>
-
-
+# evaluation metrics
 metric_keys:
-#    - per.error_rate
     - flvl_md.ACC
     - flvl_md.PRE
     - flvl_md.REC
