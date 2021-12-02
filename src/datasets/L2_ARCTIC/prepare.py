@@ -59,6 +59,11 @@ def prepare(dataset_dir, train_json_path, valid_json_path, test_json_path, phone
 
     logger.info('generate json files')
 
+    # load forced alignment segmentation
+    fa_seg_json_path = dataset_dir.parent / 'fa_segmentation.json'
+    with open(fa_seg_json_path) as f:
+        fa_segmentation = json.load(f)
+
     # get speakers
     spk_lists = [train_spks.split(), valid_spks.split(), test_spks.split()]
 
@@ -71,10 +76,10 @@ def prepare(dataset_dir, train_json_path, valid_json_path, test_json_path, phone
             match_or=match_or
         )
         ann_paths = [Path(path) for path in ann_paths]
-        generate_json(json_path, ann_paths, phoneme_set_handler)
+        generate_json(json_path, ann_paths, phoneme_set_handler, fa_segmentation)
 
 
-def generate_json(json_path, ann_paths, phoneme_set_handler):
+def generate_json(json_path, ann_paths, phoneme_set_handler, fa_segmentation):
     json_data = {}
 
     for ann_path in tqdm(sorted(ann_paths)):
@@ -107,6 +112,8 @@ def generate_json(json_path, ann_paths, phoneme_set_handler):
             words.append(w)
             word_segments.append([start_time, end_time])
 
+        utt_fa_segmentation = fa_segmentation[utt_id]
+
         utt_json_data = {
             'wav_path': wav_path,
             'duration': duration,
@@ -114,6 +121,7 @@ def generate_json(json_path, ann_paths, phoneme_set_handler):
             'txt_gt_phn_seq': phonemes,
             'txt_gt_cnncl_seq': canonicals,
             'gt_segmentation': phoneme_segments,
+            'fa_segmentation': utt_fa_segmentation
             # 'words': words,
             # 'word_segments': word_segments
         }

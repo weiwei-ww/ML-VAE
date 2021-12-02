@@ -165,6 +165,7 @@ def create_json(
             'txt_gt_phn_seq': phonemes,
             'txt_gt_cnncl_seq': phonemes,
             'gt_segmentation': phoneme_segments,
+            'fa_segmentation': phoneme_segments,
             # 'words': words,
             # 'word_segments': word_segments
         }
@@ -270,6 +271,9 @@ def get_phoneme_lists(phn_file, phoneme_set_handler):
 
     phonemes = []
     segments = []
+
+    if 'MPMB0' in phn_file and 'SI1501' in phn_file:
+        print()
 
     for line in open(phn_file):
         start, end, phoneme = line.rstrip('\n').replace('h#', 'sil').split(' ')
