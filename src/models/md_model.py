@@ -109,7 +109,7 @@ class MDModel(sb.Brain):
 
         # get metrics
         log_metrics['loss'] = round(stage_loss, 3)
-        for metric_key in self.hparams.metric_keys:  # metric_key = 'PER' or 'md.F1'
+        for metric_key in self.hparams.metric_keys:  # e.g. metric_key = 'PER' or 'md.F1'
             metric_key_list = metric_key.split('.')
             stats = self.stats_loggers[f'{metric_key_list[0].lower()}_stats']
             stats_key = None if len(metric_key_list) == 1 else metric_key_list[1]
