@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from speechbrain.utils.data_utils import undo_padding
 from speechbrain.nnet.losses import compute_masked_loss
 
-from utils.md_metric_stats import MDMetricStats
+from utils.metric_stats.md_metric_stats import MDMetricStats
 from models.md_model import MDModel
 
 logger = logging.getLogger(__name__)
@@ -31,6 +31,10 @@ class SBModel(MDModel):
         predictions = {
             'logits': logits
         }
+
+        flvl_gt_md_lbl_seqs = batch['flvl_gt_md_lbl_seq'][0]
+        if logits.shape[1] - flvl_gt_md_lbl_seqs.shape[1] > 0:
+            raise ValueError(f'Inconsistent sequence lengths: {logits.shape[1]} != {flvl_gt_md_lbl_seqs.shape[1]}')
 
         return predictions
 
