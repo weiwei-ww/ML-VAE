@@ -6,7 +6,6 @@ import speechbrain.utils.data_utils
 from speechbrain.utils.metric_stats import ErrorRateStats
 
 import utils.alignment
-import utils.md_scoring
 from utils.md_metric_stats import MDMetricStats
 from models.md_model import MDModel
 

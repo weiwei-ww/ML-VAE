@@ -1,38 +1,32 @@
 import torch
-import utils.md_scoring
 
 
-class MDMetricStats:
-    def __init__(self):
+class BaseMetricStats:
+    def __init__(self, metric_fn=None):
         self.clear()
+        self.metric_fn = metric_fn
 
     def clear(self):
-        self.md_metric_keys = []
+        self.metric_keys = []
         self.ids = []
         self.scores_list = []
 
     def append(self, ids, **kwargs):
-        self.ids.extend(ids)
-        self.scores_list.extend(utils.md_scoring.batch_seq_md_scoring(**kwargs))
-        if len(self.md_metric_keys) == 0:
-            self.md_metric_keys = list(self.scores_list[0].keys())
+        if self.metric_fn is None:
+            raise ValueError('No metric_fn has been provided')
+        self.ids.extend(ids)  # save ID
+        self.scores_list.extend(self.metric_fn(**kwargs))  # save metrics
+        if len(self.metric_keys) == 0:  # save metric keys
+            self.metric_keys = list(self.scores_list[0].keys())
 
     def summarize(self, field=None):
-        if len(self.md_metric_keys) == 0:
+        if len(self.metric_keys) == 0:
             raise ValueError('No metrics saved yet')
 
         mean_scores = {}
-        for key in self.md_metric_keys:
+        for key in self.metric_keys:  # calculate average scores
             mean_scores[key] = [scores[key] for scores in self.scores_list]
             mean_scores[key] = torch.mean(torch.tensor(mean_scores[key]))
-
-        eps = 1e-6
-        PRE = mean_scores['PRE']
-        REC = mean_scores['REC']
-        mean_scores['F1'] = (2 * PRE * REC) / (PRE + REC + eps)
-
-        for key in mean_scores:
-            mean_scores[key] = round(mean_scores[key].item(), 2)
 
         if field is None:
             return mean_scores

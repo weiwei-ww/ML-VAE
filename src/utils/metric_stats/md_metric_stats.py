@@ -2,6 +2,29 @@ import numpy as np
 
 import torch
 
+from utils.metric_stats.base_metric_stats import BaseMetricStats
+
+
+class MDMetricStats(BaseMetricStats):
+    def __init__(self):
+        super(MDMetricStats, self).__init__(metric_fn=batch_seq_md_scoring)
+
+    def summarize(self, field=None):
+        mean_scores = super(MDMetricStats, self).summarize()
+
+        eps = 1e-6
+        PRE = mean_scores['PRE']
+        REC = mean_scores['REC']
+        mean_scores['F1'] = (2 * PRE * REC) / (PRE + REC + eps)
+
+        for key in mean_scores:
+            mean_scores[key] = round(mean_scores[key].item(), 2)
+
+        if field is None:
+            return mean_scores
+        else:
+            return mean_scores[field]
+
 
 def binary_seq_md_scoring(prediction, target):
     """
@@ -34,7 +57,7 @@ def binary_seq_md_scoring(prediction, target):
             x = torch.Tensor(x)
         elif not isinstance(x, torch.Tensor):
             raise TypeError(f'Unsupported input type: {type(x).__name__}')
-        x = x.long().squeeze()
+        x = x.int().squeeze()
 
         if x.ndim > 1:
             raise ValueError('Only one-dimension input is allowed')

@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from speechbrain.utils.data_utils import undo_padding
 from speechbrain.nnet.losses import compute_masked_loss
 
-from utils.md_metric_stats import MDMetricStats
+from utils.metric_stats.md_metric_stats import MDMetricStats
 from models.md_model import MDModel
 
 logger = logging.getLogger(__name__)
