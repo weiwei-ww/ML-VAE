@@ -11,7 +11,7 @@ import speechbrain.dataio.dataset
 import speechbrain.dataio.encoder
 import speechbrain.utils.data_pipeline
 
-from utils.preprocessing import generate_flvl_annotation
+from utils.preprocessing import generate_flvl_annotation, generate_boundary_seq
 
 logger = logging.getLogger(__name__)
 
@@ -152,6 +152,16 @@ def data_io_prep(hparams):
         yield aug_flvl_gt_md_lbl_seq
     sb.dataio.dataset.add_dynamic_item(datasets, flvl_gt_md_lbl_seq_pipeline)
 
+    # ground truth boundaries
+    @speechbrain.utils.data_pipeline.takes('id', 'feat', 'duration', 'gt_segmentation')
+    @speechbrain.utils.data_pipeline.provides('gt_boundary_seq', 'gt_phn_end_seq')
+    def gt_boundary_seq_pipeline(id, feat, duration, gt_segmentation):
+        boundary_seq, phn_end_seq = generate_boundary_seq(id, feat, duration, gt_segmentation)
+        yield boundary_seq
+        yield phn_end_seq
+    sb.dataio.dataset.add_dynamic_item(datasets, gt_boundary_seq_pipeline)
+
+
     # set output keys
     output_keys = [
         'id',
@@ -161,7 +171,8 @@ def data_io_prep(hparams):
         'flvl_gt_phn_seq', 'flvl_gt_cnncl_seq',  # frame level phonemes
         'aug_flvl_gt_cnncl_seq', 'aug_flvl_gt_cnncl_seq',  # frame level phoneme with augmentation
         'plvl_gt_md_lbl_seq', 'flvl_gt_md_lbl_seq', 'aug_flvl_gt_md_lbl_seq',  # phoneme and frame level MD ground truth
-        'gt_segmentation'  # ground truth segmentation
+        'fa_segmentation', 'gt_segmentation',  # ground truth and forced alignment segmentation
+        'gt_boundary_seq', 'gt_phn_end_seq'  # ground truth boundary sequence
     ]
     sb.dataio.dataset.set_output_keys(datasets, output_keys)
 
