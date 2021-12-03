@@ -1,0 +1,86 @@
+n_epochs: 50
+lr: 1.0
+
+epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter
+    limit: !ref <n_epochs>
+# Model parameters
+activation: !name:torch.nn.LeakyReLU
+dropout: 0.15
+cnn_blocks: 2
+cnn_channels: (128, 256)
+cnn_kernelsize: (3, 3)
+rnn_layers: 4
+rnn_neurons: 512
+rnn_bidirectional: True
+dnn_blocks: 2
+dnn_neurons: 512
+
+# Outputs
+output_neurons: !ref <n_phonemes> + 2
+
+normalizer: !new:speechbrain.processing.features.InputNormalization
+    norm_type: global
+crdnn: !new:speechbrain.lobes.models.CRDNN.CRDNN
+    input_size: !ref <input_size>
+    activation: !ref <activation>
+    dropout: !ref <dropout>
+    cnn_blocks: !ref <cnn_blocks>
+    cnn_channels: !ref <cnn_channels>
+    cnn_kernelsize: !ref <cnn_kernelsize>
+    time_pooling: True
+    rnn_layers: !ref <rnn_layers>
+    rnn_neurons: !ref <rnn_neurons>
+    rnn_bidirectional: !ref <rnn_bidirectional>
+    dnn_blocks: !ref <dnn_blocks>
+    dnn_neurons: !ref <dnn_neurons>
+
+output: !new:speechbrain.nnet.linear.Linear
+    input_size: !ref <dnn_neurons>
+    n_neurons: !ref <output_neurons>
+    bias: True
+
+log_softmax: !new:speechbrain.nnet.activations.Softmax
+    apply_log: True
+
+optimizer: !name:torch.optim.Adadelta
+    rho: 0.95
+    lr: !ref <lr>
+    eps: 1.e-8
+
+scheduler: !new:speechbrain.nnet.schedulers.NewBobScheduler
+    initial_value: !ref <lr>
+    improvement_threshold: 0.0025
+    annealing_factor: 0.8
+    patient: 0
+
+modules:
+    crdnn: !ref <crdnn>
+    output: !ref <output>
+    normalizer: !ref <normalizer>
+
+compute_cost: !name:speechbrain.nnet.losses.ctc_loss
+
+checkpoints_dir: !ref <output_dir>/checkpoints
+checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
+    checkpoints_dir: !ref <checkpoints_dir>
+    recoverables:
+        crdnn: !ref <crdnn>
+        output: !ref <output>
+        normalizer: !ref <normalizer>
+        scheduler: !ref <scheduler>
+        epoch_counter: !ref <epoch_counter>
+
+
+wer_file: !ref <output_dir>/wer.txt
+md_metrics_file: !ref <output_dir>/md_metrics.txt
+
+metric_keys:
+    - per.error_rate
+    - plvl_md.ACC
+    - plvl_md.PRE
+    - plvl_md.REC
+    - plvl_md.F1
+
+min_key: per.error_rate
+
+jit_module_keys: [crdnn]
