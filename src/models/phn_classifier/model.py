@@ -41,7 +41,7 @@ class SBModel(MDModel):
         out = predictions['out']
         feat_lens = batch['feat'][1]
         plvl_cnnl_phn_seqs, plvl_cnnl_phn_seq_lens = batch['gt_cnncl_seq']
-        boundary_seqs = batch['gt_boundary_seq'][0]
+        boundary_seqs = batch['fa_boundary_seq'][0]
 
         # compute BCE loss
         loss = self.modules['phoneme_recognizer'].calculate_losses(
