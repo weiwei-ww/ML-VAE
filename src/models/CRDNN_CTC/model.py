@@ -2,11 +2,12 @@ import logging
 from pathlib import Path
 
 import speechbrain as sb
-import speechbrain.utils.data_utils
+from speechbrain.utils.data_utils import undo_padding
 from speechbrain.utils.metric_stats import ErrorRateStats
+from speechbrain.nnet.losses import ctc_loss
 
 import utils.alignment
-from utils.md_metric_stats import MDMetricStats
+from utils.metric_stats.md_metric_stats import MDMetricStats
 from models.md_model import MDModel
 
 logger = logging.getLogger(__name__)
@@ -49,7 +50,7 @@ class SBModel(MDModel):
 
         # compute CTC loss
         phns, phn_lens = batch['gt_phn_seq']
-        loss = self.hparams.compute_cost(pout, phns, pout_lens, phn_lens, self.label_encoder.get_blank_index())
+        loss = ctc_loss(pout, phns, pout_lens, phn_lens, self.label_encoder.get_blank_index())
 
         # compute PER
         sequences = sb.decoders.ctc_greedy_decode(
@@ -72,8 +73,8 @@ class SBModel(MDModel):
         gt_phn_seqs, gt_phn_seq_lens = batch['gt_phn_seq']
         gt_cnncl_seqs, gt_cnncl_seq_lens = batch['gt_cnncl_seq']
 
-        gt_phn_seqs = sb.utils.data_utils.undo_padding(gt_phn_seqs, gt_phn_seq_lens)
-        gt_cnncl_seqs = sb.utils.data_utils.undo_padding(gt_cnncl_seqs, gt_cnncl_seq_lens)
+        gt_phn_seqs = undo_padding(gt_phn_seqs, gt_phn_seq_lens)
+        gt_cnncl_seqs = undo_padding(gt_cnncl_seqs, gt_cnncl_seq_lens)
 
         # align sequences
         ali_pred_phn_seqs, ali_gt_phn_seqs, ali_gt_cnncl_seqs = \

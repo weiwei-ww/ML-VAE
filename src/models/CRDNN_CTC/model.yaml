@@ -58,12 +58,7 @@ modules:
     output: !ref <output>
     normalizer: !ref <normalizer>
 
-
 compute_cost: !name:speechbrain.nnet.losses.ctc_loss
-ctc_stats: !name:speechbrain.utils.metric_stats.MetricStats
-per_stats: !name:speechbrain.utils.metric_stats.ErrorRateStats
-md_stats: !name:utils.md_metric_stats.MDMetricStats
-
 
 checkpoints_dir: !ref <output_dir>/checkpoints
 checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer

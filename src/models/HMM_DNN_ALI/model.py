@@ -8,7 +8,6 @@ from speechbrain.utils.metric_stats import MetricStats
 from speechbrain.utils.data_utils import undo_padding
 from speechbrain.nnet.losses import compute_masked_loss
 
-from utils.md_metric_stats import MDMetricStats
 from models.md_model import MDModel
 
 logger = logging.getLogger(__name__)
