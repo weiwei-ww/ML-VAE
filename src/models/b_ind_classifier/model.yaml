@@ -1,0 +1,42 @@
+n_epochs: 50
+
+epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter
+    limit: !ref <n_epochs>
+
+# checkpointer
+checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
+    checkpoints_dir: !ref <output_dir>/checkpoints
+    recoverables:
+        phoneme_recognizer: !ref <phoneme_recognizer>
+        epoch_counter: !ref <epoch_counter>
+
+normalizer: !new:speechbrain.processing.features.InputNormalization
+    norm_type: global
+
+# model parameters
+rnn_hidden_size: 512
+rnn_num_layers: 2
+fc_size: 128
+boundary_detector: !new:blocks.boundary_detector.BoundaryDetector
+    input_size: !ref <input_size>
+    rnn_hidden_size: !ref <rnn_hidden_size>
+    rnn_num_layers: !ref <rnn_num_layers>
+    fc_sizes:
+        - !ref <rnn_hidden_size>
+        - !ref <fc_size>
+        - !ref <fc_size>
+        - 1
+
+lr: 0.001
+optimizer: !name:torch.optim.Adam
+    lr: !ref <lr>
+
+modules:
+    phoneme_recognizer: !ref <phoneme_recognizer>
+
+# evaluation metrics
+metric_keys:
+    - phn_acc.flvl_acc
+    - phn_acc.plvl_acc
+
+max_key: phn_acc.flvl_acc
