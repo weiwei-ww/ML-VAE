@@ -46,7 +46,7 @@ class SBModel(MDModel):
     def compute_objectives(self, predictions, batch, stage):
         # get model outputs
         pout = predictions['pout']
-        pout_lens = predictions['wav_lens']
+        pout_lens = batch['feat'][1]
 
         # compute CTC loss
         phns, phn_lens = batch['gt_phn_seq']
