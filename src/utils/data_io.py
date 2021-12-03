@@ -242,6 +242,14 @@ def data_io_prep(hparams):
         yield phn_end_seq
     sb.dataio.dataset.add_dynamic_item(datasets, gt_boundary_seq_pipeline)
 
+    # forced alignment boundaries
+    @speechbrain.utils.data_pipeline.takes('id', 'feat', 'duration', 'fa_segmentation')
+    @speechbrain.utils.data_pipeline.provides('fa_boundary_seq', 'fa_phn_end_seq')
+    def fa_boundary_seq_pipeline(id, feat, duration, fa_segmentation):
+        boundary_seq, phn_end_seq = generate_boundary_seq(id, feat, duration, fa_segmentation)
+        yield boundary_seq
+        yield phn_end_seq
+    sb.dataio.dataset.add_dynamic_item(datasets, fa_boundary_seq_pipeline)
 
     # set output keys
     output_keys = [
@@ -253,6 +261,7 @@ def data_io_prep(hparams):
         'aug_flvl_gt_cnncl_seq', 'aug_flvl_gt_cnncl_seq',  # frame level phoneme with augmentation
         'plvl_gt_md_lbl_seq', 'flvl_gt_md_lbl_seq', 'aug_flvl_gt_md_lbl_seq',  # phoneme and frame level MD ground truth
         'fa_segmentation', 'gt_segmentation',  # ground truth and forced alignment segmentation
+        'fa_boundary_seq', 'fa_phn_end_seq',  # forced alignment boundary sequence
         'gt_boundary_seq', 'gt_phn_end_seq'  # ground truth boundary sequence
     ]
     sb.dataio.dataset.set_output_keys(datasets, output_keys)
