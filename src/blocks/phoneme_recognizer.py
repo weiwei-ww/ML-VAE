@@ -14,10 +14,7 @@ class PhonemeRecognizer(nn.Module):
         self.fc = FCBlock(fc_sizes)
         self.n_phonemes = n_phonemes
 
-    def forward(
-            self,
-            feats
-    ):
+    def forward(self, feats):
         out = self.rnn(feats)[0]
         out = self.fc(out)
         return out
