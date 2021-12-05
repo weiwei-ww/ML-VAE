@@ -10,13 +10,19 @@ from blocks.fc_block import FCBlock
 
 
 class BoundaryDetector(nn.Module):
-    def __init__(self, input_size, rnn_hidden_size, rnn_num_layer, fc_sizes):
+    def __init__(self, input_size, rnn_hidden_size, rnn_num_layers, fc_sizes):
         super(BoundaryDetector, self).__init__()
 
-        self.rnn = nn.LSTM(input_size, rnn_hidden_size, rnn_num_layer, batch_first=True)
+        self.rnn = nn.LSTM(input_size, rnn_hidden_size, rnn_num_layers, batch_first=True)
 
-        self.fc_a = FCBlock(fc_sizes)
-        self.fc_a = FCBlock(fc_sizes)
+        self.fc_alpha = nn.Sequential(
+            FCBlock(fc_sizes),
+            nn.Softplus()
+        )
+        self.fc_beta = nn.Sequential(
+            FCBlock(fc_sizes),
+            nn.Softplus()
+        )
 
         # self.fc_a = nn.Sequential(
         #     linear.Linear(rnn_dim, fc_ab_dim, 1),
@@ -35,18 +41,18 @@ class BoundaryDetector(nn.Module):
     ):
         # compute parameters
         rnn_out = self.rnn(x)[0]  # shape = (B, T, C)
-        v_a = self.fc_a(rnn_out)  # shape = (B, T, 1)
-        v_a = torch.squeeze(v_a, dim=-1)  # shape = (B, T)
-        v_b = self.fc_b(rnn_out)  # shape = (B, T, 1)
-        v_b = torch.squeeze(v_b, dim=-1)  # shape = (B, T)
+        v_alpha = self.fc_alpha(rnn_out)  # shape = (B, T, 1)
+        v_alpha = torch.squeeze(v_alpha, dim=-1)  # shape = (B, T)
+        v_beta = self.fc_beta(rnn_out)  # shape = (B, T, 1)
+        v_beta = torch.squeeze(v_beta, dim=-1)  # shape = (B, T)
 
         # add eps
         eps = 1e-5
-        v_a = v_a + eps
-        v_b = v_b + eps
+        v_alpha = v_alpha + eps
+        v_beta = v_beta + eps
 
         # compute kld loss
-        kld_loss = compute_masked_loss(self.kld_loss_function, v_a, v_b, length=feat_lens)
+        kld_loss = compute_masked_loss(self.kld_loss_function, v_alpha, v_beta, length=feat_lens)
 
         # sample M times
         sample_times = 10
@@ -57,11 +63,11 @@ class BoundaryDetector(nn.Module):
         boundary_v = None
         for _ in range(sample_times):
             # sample u
-            uniform_u = torch.rand_like(v_a)
+            uniform_u = torch.rand_like(v_alpha)
             uniform_u = uniform_u * 0.98 + 0.01
 
             # calculate sampled v
-            boundary_v_i = (1 - (uniform_u ** (1 / v_b))) ** (1 / v_a)  # shape = (B, T)
+            boundary_v_i = (1 - (uniform_u ** (1 / v_beta))) ** (1 / v_alpha)  # shape = (B, T)
             eps = 1e-5
             boundary_v_i = boundary_v_i * (1 - 2 * eps) + eps
 
@@ -72,9 +78,9 @@ class BoundaryDetector(nn.Module):
             # compute loss
             for i in range(boundary_v_i.shape[0]):
                 for j in range(boundary_v_i.shape[1]):
-                    assert 0 < boundary_v_i[i, j] < 1, 'u = {}, a = {}, b = {}, beta = {}'.format(
-                        uniform_u[i, j], v_a[i, j], v_b[i, j], boundary_v_i[i, j]
-                    )
+                    if not 0 < boundary_v_i[i, j] < 1:
+                        raise ValueError(f'Invalid values: u = {uniform_u[i, j]}, alpha = {v_alpha[i, j]}, ' +
+                                         f'beta = {v_beta[i, j]}, boundary_v = {boundary_v_i[i, j]}')
             loss_fn = functools.partial(F.binary_cross_entropy, reduction='none')
             bce_loss = compute_masked_loss(loss_fn, boundary_v_i, boundary_seqs, length=feat_lens)
             losses['boundary_bce_loss'] = losses['boundary_bce_loss'] + bce_loss
@@ -89,7 +95,7 @@ class BoundaryDetector(nn.Module):
 
         return ret
 
-    def kld_loss_function(self, a, b):  # shape = (B, T)
+    def kld_loss_function(self, alpha, beta):  # shape = (B, T)
         prior_alpha = torch.tensor(1.0)
         prior_beta = torch.tensor(9.0)
 
@@ -100,17 +106,17 @@ class BoundaryDetector(nn.Module):
 
         kld = 0
         for m in range(1, 11):
-            kld = kld + 1 / (m + a * b) * beta_function(m / a, b)
+            kld = kld + 1 / (m + alpha * beta) * beta_function(m / alpha, beta)
 
-        kld = -(b - 1) / b + (prior_beta - 1) * b * kld
-        kld = torch.log(a) + torch.log(b) + torch.log(beta_function(prior_alpha, prior_beta)) + kld
+        kld = -(beta - 1) / beta + (prior_beta - 1) * beta * kld
+        kld = torch.log(alpha) + torch.log(beta) + torch.log(beta_function(prior_alpha, prior_beta)) + kld
 
-        psi_b = torch.log(b) - 1 / (2 * b) - 1 / (12 * b ** 2)
-        kld = kld + (a - prior_alpha) / a * (-0.57721 - psi_b - 1 / b)
+        psi_b = torch.log(beta) - 1 / (2 * beta) - 1 / (12 * beta ** 2)
+        kld = kld + (alpha - prior_alpha) / alpha * (-0.57721 - psi_b - 1 / beta)
 
         for i in range(kld.shape[0]):
             for j in range(kld.shape[1]):
                 if not torch.isfinite(kld[i, j]):
-                    raise ValueError('Invalid value: kld[i, j], a = {:.7f}, b = {:.7f}'.format(a[i, j], b[i, j]))
+                    raise ValueError(f'Invalid value: kld[{i}, {j}], alpha = {alpha[i, j]:.7f}, beta = {beta[i, j]:.7f}')
 
         return kld
