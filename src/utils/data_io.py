@@ -105,22 +105,23 @@ def prepare_datasets(hparams):
     computed_datasets = []
     set_names = ['train', 'valid', 'test']
     output_keys = ['id']
-    for set_name, dataset in zip(set_names, datasets):
+    for set_name, dataset in zip(set_names, datasets):  # prepare dataset for train, valid, and test sets
         pkl_path = Path(hparams['prepare']['dataset_dir']).parent / 'computed_dataset' / f'{set_name}.pkl'
-        if not pkl_path.exists():
+        if not pkl_path.exists():  # prepare computed dataset
             logger.info(f'Computed dataset for {set_name} set does not exist, start preparing it')
             pkl_path.parent.mkdir(exist_ok=True)
             computed_dataset_dict = {}
-            for data_sample in tqdm(dataset):
-                data_id = data_sample['id']
-                data_sample_dict = {}
+            for data_sample in tqdm(dataset):  # for each data sample
+                data_id = data_sample['id']  # get ID
+                data_sample_dict = {}  # data sample content as a dictionary
                 for key in data_sample:
                     if key != 'id':
                         data_sample_dict[key] = data_sample[key]
                 computed_dataset_dict[data_id] = data_sample_dict
+            # save the computed dataset
             with open(pkl_path, 'wb') as f:
                 pickle.dump(computed_dataset_dict, f)
-        else:
+        else:  # load computed dataset from disk
             logger.info(f'Load computed dataset for {set_name} set')
             with open(pkl_path, 'rb') as f:
                 computed_dataset_dict = pickle.load(f)
