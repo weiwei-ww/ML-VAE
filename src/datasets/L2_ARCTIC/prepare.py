@@ -84,7 +84,8 @@ def generate_json(json_path, ann_paths, phoneme_set_handler, fa_segmentation):
 
     for ann_path in tqdm(sorted(ann_paths)):
         spk_id = ann_path.parent.parent.stem
-        utt_id = '{}_{}'.format(spk_id, ann_path.stem.split('_')[-1])
+        utt_name = ann_path.stem.split('_')[-1]
+        utt_id = f'{spk_id}_{utt_name}'
 
         # wave file path
         wav_path = f'datasets/L2_ARCTIC/original_dataset/{spk_id}/wav/{ann_path.stem}.wav'

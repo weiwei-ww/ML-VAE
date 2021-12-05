@@ -132,8 +132,8 @@ if __name__ == '__main__':
             item_a = '*'
         if item_b is None:
             item_b = '*'
-        a_str += '{:^3}|'.format(item_a)
-        b_str += '{:^3}|'.format(item_b)
+        a_str += f'{item_a:^3}|'
+        b_str += f'{item_b:^3}|'
     print(a_str)
     print(b_str)
 
