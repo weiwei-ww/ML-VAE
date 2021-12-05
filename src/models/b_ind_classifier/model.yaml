@@ -7,7 +7,7 @@ epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter
 checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
     checkpoints_dir: !ref <output_dir>/checkpoints
     recoverables:
-        phoneme_recognizer: !ref <phoneme_recognizer>
+        boundary_detector: !ref <boundary_detector>
         epoch_counter: !ref <epoch_counter>
 
 normalizer: !new:speechbrain.processing.features.InputNormalization
@@ -32,7 +32,7 @@ optimizer: !name:torch.optim.Adam
     lr: !ref <lr>
 
 modules:
-    phoneme_recognizer: !ref <phoneme_recognizer>
+    boundary_detector: !ref <boundary_detector>
 
 # evaluation metrics
 metric_keys:
