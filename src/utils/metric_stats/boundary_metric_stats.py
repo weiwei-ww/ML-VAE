@@ -43,7 +43,7 @@ def boundary_scoring(prediction, target):
         raise ValueError(f'Inconsistent input lengths: {len(prediction)} != {len(target)}')
 
     # convert boundary sequence into index sequence
-    prediction_index_seq = torch.where(target == 1)[0]
+    prediction_index_seq = torch.where(prediction == 1)[0]
 
     target_index_seq = torch.where(target == 1)[0]
     target_index_seq = torch.cat([target_index_seq, target_index_seq.new_full((1,), len(target))])
@@ -86,7 +86,7 @@ def boundary_scoring(prediction, target):
         'pre': pre,
         'rec': rec,
         'f1': f1,
-        'r-value': r_value
+        'r_value': r_value
     }
 
     return scores
