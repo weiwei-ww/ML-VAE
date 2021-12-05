@@ -76,11 +76,11 @@ class BoundaryDetector(nn.Module):
             boundary_v = boundary_v + boundary_v_i
 
             # compute loss
-            for i in range(boundary_v_i.shape[0]):
-                for j in range(boundary_v_i.shape[1]):
-                    if not 0 < boundary_v_i[i, j] < 1:
-                        raise ValueError(f'Invalid values: u = {uniform_u[i, j]}, alpha = {v_alpha[i, j]}, ' +
-                                         f'beta = {v_beta[i, j]}, boundary_v = {boundary_v_i[i, j]}')
+            # for i in range(boundary_v_i.shape[0]):
+            #     for j in range(boundary_v_i.shape[1]):
+            #         if not 0 < boundary_v_i[i, j] < 1:
+            #             raise ValueError(f'Invalid values: u = {uniform_u[i, j]}, alpha = {v_alpha[i, j]}, ' +
+            #                              f'beta = {v_beta[i, j]}, boundary_v = {boundary_v_i[i, j]}')
             loss_fn = functools.partial(F.binary_cross_entropy, reduction='none')
             bce_loss = compute_masked_loss(loss_fn, boundary_v_i, boundary_seqs, length=feat_lens)
             losses['boundary_bce_loss'] = losses['boundary_bce_loss'] + bce_loss
@@ -114,9 +114,9 @@ class BoundaryDetector(nn.Module):
         psi_b = torch.log(beta) - 1 / (2 * beta) - 1 / (12 * beta ** 2)
         kld = kld + (alpha - prior_alpha) / alpha * (-0.57721 - psi_b - 1 / beta)
 
-        for i in range(kld.shape[0]):
-            for j in range(kld.shape[1]):
-                if not torch.isfinite(kld[i, j]):
-                    raise ValueError(f'Invalid value: kld[{i}, {j}], alpha = {alpha[i, j]:.7f}, beta = {beta[i, j]:.7f}')
+        # for i in range(kld.shape[0]):
+        #     for j in range(kld.shape[1]):
+        #         if not torch.isfinite(kld[i, j]):
+        #             raise ValueError(f'Invalid value: kld[{i}, {j}], alpha = {alpha[i, j]:.7f}, beta = {beta[i, j]:.7f}')
 
         return kld
