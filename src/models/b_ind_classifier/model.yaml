@@ -26,6 +26,18 @@ boundary_detector: !new:blocks.boundary_detector.BoundaryDetector
         - !ref <fc_size>
         - !ref <fc_size>
         - 1
+#rnn_hidden_size: 32
+#rnn_num_layers: 1
+#fc_size: 16
+#boundary_detector: !new:blocks.boundary_detector.BoundaryDetector
+#    input_size: !ref <input_size>
+#    rnn_hidden_size: !ref <rnn_hidden_size>
+#    rnn_num_layers: !ref <rnn_num_layers>
+#    fc_sizes:
+#        - !ref <rnn_hidden_size>
+#        - !ref <fc_size>
+#        - !ref <fc_size>
+#        - 1
 
 lr: 0.001
 optimizer: !name:torch.optim.Adam
@@ -36,7 +48,9 @@ modules:
 
 # evaluation metrics
 metric_keys:
-    - phn_acc.flvl_acc
-    - phn_acc.plvl_acc
+#    - boundary.pre
+#    - boundary.rec
+    - boundary.f1
+    - boundary.r_value
 
-max_key: phn_acc.flvl_acc
+max_key: boundary.f1

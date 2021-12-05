@@ -42,7 +42,7 @@ class SBModel(MDModel):
         for loss_key in losses:
             weight_key = loss_key.replace('_loss', '_weight')
             weight = getattr(self.hparams, weight_key, 1)
-            loss = weight * losses[loss_key]
+            loss += weight * losses[loss_key]
 
 
         # get model outputs
