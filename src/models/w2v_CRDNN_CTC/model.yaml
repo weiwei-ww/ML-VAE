@@ -8,22 +8,13 @@ epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter
 activation: !name:torch.nn.LeakyReLU
 dropout: 0.15
 cnn_blocks: 2
-cnn_channels: (128, 256)
+cnn_channels: (128, 128)
 cnn_kernelsize: (3, 3)
-rnn_layers: 4
+rnn_layers: 2
 rnn_neurons: 512
 rnn_bidirectional: True
 dnn_blocks: 2
-dnn_neurons: 512
-
-#cnn_blocks: 1
-#cnn_channels: (4, 4)
-#cnn_kernelsize: (3, 3)
-#rnn_layers: 1
-#rnn_neurons: 8
-#rnn_bidirectional: True
-#dnn_blocks: 1
-#dnn_neurons: 4
+dnn_neurons: 128
 
 
 # Outputs
