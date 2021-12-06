@@ -19,7 +19,7 @@ class PhonemeRecognizer(nn.Module):
         out = self.fc(out)
         return out
 
-    def calculate_losses(
+    def compute_losses(
             self,
             out,  # (B, T, C)
             feat_lens,  # (B)

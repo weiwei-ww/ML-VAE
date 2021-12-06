@@ -44,7 +44,7 @@ class SBModel(MDModel):
         boundary_seqs = batch['fa_boundary_seq'][0]
 
         # compute BCE loss
-        loss = self.modules['phoneme_recognizer'].calculate_losses(
+        loss = self.modules['phoneme_recognizer'].compute_losses(
             out, feat_lens, plvl_cnnl_phn_seqs, plvl_cnnl_phn_seq_lens, boundary_seqs
         )['phoneme_bce_loss']
 
