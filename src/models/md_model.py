@@ -98,6 +98,9 @@ class MDModel(sb.Brain):
         # initialize metric stats
         self.stats_loggers = {}
 
+        # debug
+        if self.debug and stage == sb.Stage.TRAIN:
+            logger.info(f'{torch.cuda.memory_allocated()} {torch.cuda.max_memory_allocated()}')
 
     def on_stage_end(self, stage, stage_loss, epoch=None, log_metrics={}):
         if log_metrics is None:
@@ -163,4 +166,3 @@ class MDModel(sb.Brain):
                 with open(test_output_dir / f'{stats_key}.txt', 'w') as f:
                     stats_logger.write_stats(f)
                     logger.info(f'{stats_key} stats saved to {f.name}')
-
