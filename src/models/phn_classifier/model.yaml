@@ -17,7 +17,7 @@ normalizer: !new:speechbrain.processing.features.InputNormalization
 rnn_hidden_size: 512
 rnn_num_layers: 2
 fc_size: 128
-phoneme_recognizer: !new:blocks.phoneme_recognizer.PhonemeRecognizer
+phoneme_recognizer: !new:modules.phoneme_recognizer.PhonemeRecognizer
     input_size: !ref <input_size>
     rnn_hidden_size: !ref <rnn_hidden_size>
     rnn_num_layers: !ref <rnn_num_layers>

@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from blocks.fc_block import FCBlock
+from modules.fc_block import FCBlock
 from utils.data_utils import undo_padding_tensor
 
 

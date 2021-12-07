@@ -17,7 +17,7 @@ normalizer: !new:speechbrain.processing.features.InputNormalization
 rnn_hidden_size: 512
 rnn_num_layers: 2
 fc_size: 128
-boundary_detector: !new:blocks.boundary_detector.BoundaryDetector
+boundary_detector: !new:modules.boundary_detector.BoundaryDetector
     input_size: !ref <input_size>
     rnn_hidden_size: !ref <rnn_hidden_size>
     rnn_num_layers: !ref <rnn_num_layers>
@@ -29,7 +29,7 @@ boundary_detector: !new:blocks.boundary_detector.BoundaryDetector
 #rnn_hidden_size: 32
 #rnn_num_layers: 1
 #fc_size: 16
-#boundary_detector: !new:blocks.boundary_detector.BoundaryDetector
+#boundary_detector: !new:modules.boundary_detector.BoundaryDetector
 #    input_size: !ref <input_size>
 #    rnn_hidden_size: !ref <rnn_hidden_size>
 #    rnn_num_layers: !ref <rnn_num_layers>

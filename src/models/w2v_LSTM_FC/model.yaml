@@ -12,7 +12,7 @@ wav2vec2: !new:speechbrain.lobes.models.huggingface_wav2vec.HuggingFaceWav2Vec2
     freeze: False
     save_path: !ref <output_dir>/wav2vec2_checkpoint
 
-classifier: !new:blocks.fc_block.FCBlock
+classifier: !new:modules.fc_block.FCBlock
     fc_sizes:
         - 1024
         - 512

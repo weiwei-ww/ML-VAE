@@ -30,7 +30,7 @@ lstm: !new:torch.nn.LSTM
 fc_size: 64
 fc_dropout: 0
 output_size: 2
-fc: !new:blocks.fc_block.FCBlock
+fc: !new:modules.fc_block.FCBlock
     fc_sizes:
         - !ref <lstm_hidden_size>
         - !ref <fc_size>

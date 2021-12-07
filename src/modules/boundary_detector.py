@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 from speechbrain.nnet.losses import compute_masked_loss
 
-from blocks.fc_block import FCBlock
+from modules.fc_block import FCBlock
 
 
 class BoundaryDetector(nn.Module):
@@ -23,15 +23,6 @@ class BoundaryDetector(nn.Module):
             FCBlock(fc_sizes),
             nn.Softplus()
         )
-
-        # self.fc_a = nn.Sequential(
-        #     linear.Linear(rnn_dim, fc_ab_dim, 1),
-        #     nn.Softplus()
-        # )
-        # self.fc_b = nn.Sequential(
-        #     linear.Linear(rnn_dim, fc_ab_dim, 1),
-        #     nn.Softplus()
-        # )
 
     def forward(
             self,
@@ -52,7 +43,7 @@ class BoundaryDetector(nn.Module):
         v_beta = v_beta + eps
 
         # compute kld loss
-        kld_loss = compute_masked_loss(self.kld_loss_function, v_alpha, v_beta, length=feat_lens)
+        kld_loss = compute_masked_loss(self.compute_kld_loss, v_alpha, v_beta, length=feat_lens)
 
         # sample M times
         sample_times = 10
@@ -95,7 +86,7 @@ class BoundaryDetector(nn.Module):
 
         return ret
 
-    def kld_loss_function(self, alpha, beta):  # shape = (B, T)
+    def compute_kld_loss(self, alpha, beta):  # shape = (B, T)
         prior_alpha = torch.tensor(1.0)
         prior_beta = torch.tensor(9.0)
 
