@@ -139,7 +139,7 @@ class MDModel(sb.Brain):
                 if hasattr(self.hparams, 'max_key'):
                     max_keys.append(self.hparams.max_key)
                 if hasattr(self.hparams, 'min_key'):
-                    max_keys.append(self.hparams.min_key)
+                    min_keys.append(self.hparams.min_key)
                 self.checkpointer.save_and_keep_only(
                     meta=log_metrics, max_keys=max_keys, min_keys=min_keys
                 )
@@ -166,3 +166,17 @@ class MDModel(sb.Brain):
                 with open(test_output_dir / f'{stats_key}.txt', 'w') as f:
                     stats_logger.write_stats(f)
                     logger.info(f'{stats_key} stats saved to {f.name}')
+
+    def compute_and_save_losses(self, losses):
+        loss = 0
+        for loss_key in losses:
+            # compute weighted loss
+            weight_key = loss_key.replace('_loss', '_weight')
+            weight = getattr(self.hparams, weight_key, 1)
+            loss += weight * losses[loss_key]
+
+            # save loss
+            loss_metric_stats_key = loss_key + '_stats'
+            self.stats_loggers[loss_metric_stats_key].append(losses[loss_key])
+
+        return loss
