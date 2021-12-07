@@ -1,0 +1,63 @@
+n_epochs: 50
+
+epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter
+    limit: !ref <n_epochs>
+
+# checkpointer
+checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
+    checkpoints_dir: !ref <output_dir>/checkpoints
+    recoverables:
+        encoder: !ref <encoder>
+        decoder: !ref <decoder>
+        epoch_counter: !ref <epoch_counter>
+
+normalizer: !new:speechbrain.processing.features.InputNormalization
+    norm_type: global
+
+# model parameters
+latent_size: 32
+num_components: 3
+
+enc_fc_size: 64
+
+dec_rnn_hidden_size: 512
+dec_rnn_num_layers: 2
+dec_rnn_dropout: 0.15
+dec_fc_size: 64
+
+encoder: !new:modules.gmm_vae.GMMVAE
+    fc_sizes:
+        - !ref <input_size>
+        - !ref <enc_fc_size>
+        - !ref <enc_fc_size>
+    latent_size: !ref <latent_size>
+    num_components: !ref <num_components>
+
+decoder: !new:modules.decoder.Decoder
+    input_size: !ref <latent_size>
+    rnn_hidden_size: !ref <dec_rnn_hidden_size>
+    rnn_num_layers: !ref <dec_rnn_num_layers>
+    rnn_dropout: !ref <dec_rnn_dropout>
+    fc_sizes:
+        - !ref <dec_rnn_hidden_size> * 2
+        - !ref <dec_fc_size>
+        - !ref <dec_fc_size>
+        - !ref <input_size>
+
+lr: 0.001
+optimizer: !name:torch.optim.Adam
+    lr: !ref <lr>
+
+modules:
+    encoder: !ref <encoder>
+    decoder: !ref <decoder>
+
+# loss weights
+kld_weight: 0.001
+
+# evaluation metrics
+metric_keys:
+    - kld_loss
+    - recon_loss
+
+min_key: loss
