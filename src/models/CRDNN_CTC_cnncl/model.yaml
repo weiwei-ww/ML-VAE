@@ -81,6 +81,6 @@ metric_keys:
     - plvl_md.REC
     - plvl_md.F1
 
-min_key: per.error_rate
+max_key: plvl_md.F1
 
 jit_module_keys: [crdnn]

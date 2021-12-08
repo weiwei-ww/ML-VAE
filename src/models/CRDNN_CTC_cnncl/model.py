@@ -53,14 +53,15 @@ class SBModel(MDModel):
         loss = ctc_loss(pout, phns, pout_lens, phn_lens, self.label_encoder.get_blank_index())
 
         # compute PER
-        sequences = sb.decoders.ctc_greedy_decode(
+        pred_phns = sb.decoders.ctc_greedy_decode(
             pout, pout_lens, blank_id=self.label_encoder.get_blank_index()
         )
+        target_phns, target_phn_lens = batch['gt_phn_seq']
         self.stats_loggers['per_stats'].append(
             ids=batch.id,
-            predict=sequences,
-            target=phns,
-            target_len=phn_lens,
+            predict=pred_phns,
+            target=target_phns,
+            target_len=target_phn_lens,
             ind2lab=self.label_encoder.decode_ndim,
         )
 
