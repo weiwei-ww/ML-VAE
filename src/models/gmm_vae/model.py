@@ -9,7 +9,7 @@ from speechbrain.nnet.losses import compute_masked_loss
 
 from utils.metric_stats.loss_metric_stats import LossMetricStats
 from models.md_model import MDModel
-from utils.data_utils import undo_padding_tensor
+from utils.data_utils import undo_padding_tensor, apply_weight
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ class SBModel(MDModel):
         encoder_out = self.modules['encoder'](feats)
         sampled_h = encoder_out['sampled_h']  # (B, T, N * C)
         gmm_weight = encoder_out['gmm_weight']  # (B, T, N)
-        weighted_h = self.modules['encoder'].apply_weight(sampled_h, gmm_weight)
+        weighted_h = apply_weight(sampled_h, gmm_weight)
 
         decoder_out = self.modules['decoder'](weighted_h)
 
@@ -57,7 +57,7 @@ class SBModel(MDModel):
         for key in encoder_out:
             if key == 'gmm_weight':
                 continue
-            weighted_encoder_out[key] = self.modules['encoder'].apply_weight(encoder_out[key], encoder_out['gmm_weight'])
+            weighted_encoder_out[key] = apply_weight(encoder_out[key], encoder_out['gmm_weight'])
         losses['kld_loss'] = compute_masked_loss(self.modules['encoder'].compute_kld_loss,
                                                  encoder_out, encoder_out['sampled_h'],
                                                  length=feat_lens)

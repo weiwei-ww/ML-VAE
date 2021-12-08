@@ -61,16 +61,3 @@ class GMMVAE(nn.Module):
                         (log_var.exp() + (mean - prior_mean) ** 2) / (prior_log_var.exp() + eps)
                     )
         return kld_loss
-
-    def apply_weight(self, x, weight):  # x.shape = (B, T, N * C), weight.shape = (B, T, N)
-        B, T = x.shape[0], x.shape[1]
-        N = weight.shape[-1]
-        C = x.shape[-1] // N
-
-        x = x.view(B * T, N, C)
-        weight = weight.view(B * T, 1, N)
-
-        x = torch.bmm(weight, x)  # (B * T, 1, C)
-        x = x.view(B, T, C)
-
-        return x
