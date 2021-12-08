@@ -6,6 +6,8 @@ from torch.utils.tensorboard import SummaryWriter
 import speechbrain as sb
 from speechbrain.utils.train_logger import FileTrainLogger
 
+from utils.metric_stats.loss_metric_stats import LossMetricStats
+
 logger = logging.getLogger(__name__)
 
 
@@ -97,6 +99,12 @@ class MDModel(sb.Brain):
     def on_stage_start(self, stage, epoch=None):
         # initialize metric stats
         self.stats_loggers = {}
+
+        # initialize metric stats for losses
+        for loss_key in self.hparams.metric_keys:
+            if loss_key.endswith('_loss'):
+                stats_key = loss_key + '_stats'
+            self.stats_loggers[stats_key] = LossMetricStats(loss_key)
 
         # debug
         if self.debug and stage == sb.Stage.TRAIN:
