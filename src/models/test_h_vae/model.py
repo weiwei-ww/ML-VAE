@@ -34,14 +34,11 @@ class SBModel(MDModel):
         # VAE encoder and decoder
         encoder_out = self.modules['encoder'](rnn_out, sampled_pi)
         sampled_h = encoder_out['sampled_h']  # (B, T, C)
-        decoder_out = self.modules['decoder'](sampled_h)
-
-        vae_losses = encoder_out['losses']
+        decoder_out = self.modules['decoder'](sampled_h, feats)
 
         predictions = {
             'encoder_out': encoder_out,
-            'decoder_out': decoder_out,
-            'losses': vae_losses
+            'decoder_out': decoder_out
         }
 
         return predictions
@@ -50,7 +47,9 @@ class SBModel(MDModel):
         # get model outputs
         encoder_out = predictions['encoder_out']
         decoder_out = predictions['decoder_out']
-        original_losses = predictions['losses']
+
+        original_losses = encoder_out['losses']
+        original_losses['recon_loss'] = decoder_out['losses']['recon_loss']
 
         feats, feat_lens = batch['feat']
 
@@ -60,11 +59,6 @@ class SBModel(MDModel):
         # compute mean loss using lens
         for key in original_losses:
             losses[key] = apply_lens_to_loss(original_losses[key], feat_lens)
-
-        # compute recon loss
-        losses['recon_loss'] = compute_masked_loss(self.modules['decoder'].compute_recon_loss,
-                                                   decoder_out, feats,
-                                                   length=feat_lens)
 
         # compute and save total loss
         loss = super(SBModel, self).compute_and_save_losses(losses)

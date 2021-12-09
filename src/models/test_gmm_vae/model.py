@@ -9,7 +9,7 @@ from speechbrain.nnet.losses import compute_masked_loss
 
 from utils.metric_stats.loss_metric_stats import LossMetricStats
 from models.md_model import MDModel
-from utils.data_utils import undo_padding_tensor, apply_weight
+from utils.data_utils import apply_weight, apply_lens_to_loss
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ class SBModel(MDModel):
         gmm_weight = encoder_out['gmm_weight']  # (B, T, N)
         weighted_h = apply_weight(sampled_h, gmm_weight)
 
-        decoder_out = self.modules['decoder'](weighted_h)
+        decoder_out = self.modules['decoder'](weighted_h, feats)
 
         predictions = {
             'encoder_out': encoder_out,
@@ -53,19 +53,11 @@ class SBModel(MDModel):
         losses = {}
 
         # compute KLD loss
-        weighted_encoder_out ={}
-        for key in encoder_out:
-            if key == 'gmm_weight':
-                continue
-            weighted_encoder_out[key] = apply_weight(encoder_out[key], encoder_out['gmm_weight'])
-        losses['kld_loss'] = compute_masked_loss(self.modules['encoder'].compute_kld_loss,
-                                                 encoder_out, encoder_out['sampled_h'],
-                                                 length=feat_lens)
+        kld_loss = apply_weight(encoder_out['loss'], encoder_out['gmm_weight'])
+        losses['kld_loss'] = apply_lens_to_loss(kld_loss, feat_lens)
 
         # compute recon loss
-        losses['recon_loss'] = compute_masked_loss(self.modules['decoder'].compute_recon_loss,
-                                                   decoder_out, feats,
-                                                   length=feat_lens)
+        losses['recon_loss'] = apply_lens_to_loss(decoder_out['losses']['recon_loss'], feat_lens)
 
         # compute and save total loss
         loss = super(SBModel, self).compute_and_save_losses(losses)

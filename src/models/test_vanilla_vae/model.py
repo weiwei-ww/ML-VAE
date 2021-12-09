@@ -1,15 +1,10 @@
 import logging
-import functools
 
-import speechbrain as sb
-import torch.nn
-import torch.nn.functional as F
-from speechbrain.utils.data_utils import undo_padding
 from speechbrain.nnet.losses import compute_masked_loss
 
 from utils.metric_stats.loss_metric_stats import LossMetricStats
 from models.md_model import MDModel
-from utils.data_utils import undo_padding_tensor
+from utils.data_utils import apply_lens_to_loss
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +25,7 @@ class SBModel(MDModel):
         feats = self.hparams.normalizer(feats, feat_lens, epoch=current_epoch)
 
         encoder_out = self.modules['encoder'](feats)
-        decoder_out = self.modules['decoder'](encoder_out['sampled_h'])
+        decoder_out = self.modules['decoder'](encoder_out['sampled_h'], feats)
 
         predictions = {
             'encoder_out': encoder_out,
@@ -49,14 +44,10 @@ class SBModel(MDModel):
         losses = {}
 
         # compute KLD loss
-        losses['kld_loss'] = compute_masked_loss(self.modules['encoder'].compute_kld_loss,
-                                                 encoder_out['mean'], encoder_out['log_var'],
-                                                 length=feat_lens)
+        losses['kld_loss'] = apply_lens_to_loss(encoder_out['loss'], feat_lens)
 
         # compute recon loss
-        losses['recon_loss'] = compute_masked_loss(self.modules['decoder'].compute_recon_loss,
-                                                   decoder_out, feats,
-                                                   length=feat_lens)
+        losses['recon_loss'] = apply_lens_to_loss(decoder_out['losses']['recon_loss'], feat_lens)
 
         # compute and save total loss
         loss = super(SBModel, self).compute_and_save_losses(losses)

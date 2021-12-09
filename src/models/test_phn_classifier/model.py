@@ -9,7 +9,7 @@ from speechbrain.nnet.losses import compute_masked_loss
 
 from utils.metric_stats.phn_acc_metric_stats import PhnAccMetricStats
 from models.md_model import MDModel
-from utils.data_utils import undo_padding_tensor
+from utils.data_utils import undo_padding_tensor, apply_lens_to_loss
 
 logger = logging.getLogger(__name__)
 
@@ -24,15 +24,18 @@ class SBModel(MDModel):
         batch = batch.to(self.device)
         feats, feat_lens = batch['feat']
 
+        plvl_cnnl_phn_seqs, plvl_cnnl_phn_seq_lens = batch['gt_cnncl_seq']
+        boundary_seqs = batch['fa_boundary_seq'][0]
+
         # feature normalization
         current_epoch = self.hparams.epoch_counter.current
         feats = self.hparams.normalizer(feats, feat_lens, epoch=current_epoch)
 
-        out = self.modules['phoneme_recognizer'](feats)
+        out_dict = self.modules['phoneme_recognizer'](
+            feats, feat_lens, plvl_cnnl_phn_seqs, plvl_cnnl_phn_seq_lens, boundary_seqs
+        )
 
-        predictions = {
-            'out': out,
-        }
+        predictions = out_dict
 
         return predictions
 
@@ -40,13 +43,9 @@ class SBModel(MDModel):
         # get model outputs
         out = predictions['out']
         feat_lens = batch['feat'][1]
-        plvl_cnnl_phn_seqs, plvl_cnnl_phn_seq_lens = batch['gt_cnncl_seq']
-        boundary_seqs = batch['fa_boundary_seq'][0]
 
         # compute BCE loss
-        loss = self.modules['phoneme_recognizer'].compute_losses(
-            out, feat_lens, plvl_cnnl_phn_seqs, plvl_cnnl_phn_seq_lens, boundary_seqs
-        )['phoneme_bce_loss']
+        loss = apply_lens_to_loss(predictions['losses']['phn_recog_bce_loss'], feat_lens)
 
         # unpad sequences and compute metrics
         out = undo_padding_tensor(out, feat_lens)
