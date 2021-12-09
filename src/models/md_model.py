@@ -104,7 +104,7 @@ class MDModel(sb.Brain):
         for loss_key in self.hparams.metric_keys:
             if loss_key.endswith('_loss'):
                 stats_key = loss_key + '_stats'
-            self.stats_loggers[stats_key] = LossMetricStats(loss_key)
+                self.stats_loggers[stats_key] = LossMetricStats(loss_key)
 
         # debug
         if self.debug and stage == sb.Stage.TRAIN:
