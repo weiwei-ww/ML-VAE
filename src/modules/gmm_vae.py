@@ -33,6 +33,9 @@ class GMMVAE(nn.Module):
         # sampling
         sampled_h = self.reparameterize(mean, log_var)  # shape = (B, T, N * C)
 
+        # compute loss
+        loss = self.compute_kld_loss(prior_mean, prior_log_var, mean, log_var)
+
         ret = {
             'prior_mean': prior_mean,
             'prior_log_var': prior_log_var,
@@ -40,6 +43,7 @@ class GMMVAE(nn.Module):
             'log_var': log_var,  # (B, T, N * C)
             'sampled_h': sampled_h,  # (B, T, N * C)
             'gmm_weight': gmm_weight,  # (B, T, N)
+            'loss': loss  # (B, T, N * C)
         }
 
         return ret
@@ -51,9 +55,9 @@ class GMMVAE(nn.Module):
 
         return z
 
-    def compute_kld_loss(self, prediction, *args):
-        prior_mean, prior_log_var = prediction['prior_mean'], prediction['prior_log_var']
-        mean, log_var = prediction['mean'], prediction['log_var']
+    def compute_kld_loss(self, prior_mean, prior_log_var, mean, log_var):
+        # prior_mean, prior_log_var = prediction['prior_mean'], prediction['prior_log_var']
+        # mean, log_var = prediction['mean'], prediction['log_var']
 
         eps = 1e-5
         kld_loss = -0.5 * (

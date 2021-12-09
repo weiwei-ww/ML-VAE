@@ -17,19 +17,24 @@ class Decoder(nn.Module):
 
         self.loss_type = loss_type
 
-    def forward(self, sampled_h):  # shape = (B, T, C)
-        rnn_out = self.rnn(sampled_h)[0]  # shape = (B, T, C)
+    def forward(self, sampled_h, target_feats):  # (B, T, C)
+        rnn_out = self.rnn(sampled_h)[0]  # (B, T, C)
 
-        mean = self.mean_fc(rnn_out)  # shape = (B, T, C)
-        log_var = self.log_var_fc(rnn_out)  # shape = (B, T, C)
+        mean = self.mean_fc(rnn_out)  # (B, T, C)
+        log_var = self.log_var_fc(rnn_out)  # (B, T, C)
+
+        loss = self.compute_recon_loss(mean, log_var, target_feats)
 
         return {
             'mean': mean,
-            'log_var': log_var
+            'log_var': log_var,
+            'losses': {
+                'recon_loss': loss
+            }
         }
 
-    def compute_recon_loss(self, prediction, target):  # shape = (B, T, C)
-        mean, log_var = prediction['mean'], prediction['log_var']
+    def compute_recon_loss(self, mean, log_var, target):  # shape = (B, T, C)
+        # mean, log_var = prediction['mean'], prediction['log_var']
 
         if self.loss_type == 'likelihood':
             eps = 1e-5

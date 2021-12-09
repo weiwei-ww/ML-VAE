@@ -31,14 +31,14 @@ class HierarchicalVAE(nn.Module):
         vanilla_mean = vanilla_out['mean']  # (B, T, C)
         vanilla_log_var = vanilla_out['log_var']  # (B, T, C)
         vanilla_h = vanilla_out['sampled_h']  # (B, T, C)
-        vanilla_loss = self.vanilla_vae.compute_kld_loss(vanilla_mean, vanilla_log_var)  # (B, T, C)
+        vanilla_loss = vanilla_out['loss']  # (B, T, C)
 
         # GMM VAE
         gmm_out = self.gmm_vae(vae_in)
         gmm_mean = gmm_out['mean']  # (B, T, N * C)
         gmm_log_var = gmm_out['log_var']  # (B, T, N * C)
         gmm_h = gmm_out['sampled_h']  # (B, T, N * C)
-        gmm_loss = self.gmm_vae.compute_kld_loss(gmm_out)  # (B, T, N * C)
+        gmm_loss = gmm_out['loss']  # (B, T, N * C)
 
         # apply GMM VAE weights
         gmm_weight = gmm_out['gmm_weight']  # (B, T, N)

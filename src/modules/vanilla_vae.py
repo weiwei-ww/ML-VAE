@@ -19,23 +19,19 @@ class VanillaVAE(nn.Module):
         self.log_var_fc = nn.Linear(fc_sizes[-1], latent_size)
 
     def forward(self, feats):  # shape = (B, T, C)
-        # B, T = feats.shape[0], feats.shape[1]
-
         out = self.fc(feats)  # shape = (B, T, C)
         mean = self.mean_fc(out)  # shape = (B, T, C)
         log_var = self.log_var_fc(out)  # shape = (B, T, C)
 
-        # mean = mean.view(B * T, 1, mean.shape[-1])  # shape = (B * T, 1, C)
-        # log_var = log_var.view(B * T, 1, log_var.shape[-1])  # shape = (B * T, 1, C)
         sampled_h = self.reparameterize(mean, log_var)  # shape = (B, T, C)
 
-        # loss = self.loss_function(mean, log_var)  # shape = (B, T, C)
-        # loss = compute_masked_loss(self.loss_function, mean, log_var, reduction='none')  # shape = (B, T, C)
+        loss = self.compute_kld_loss(mean, log_var)  # shape = (B, T, C)
 
         return {
             'mean': mean,
             'log_var': log_var,
-            'sampled_h': sampled_h
+            'sampled_h': sampled_h,
+            'loss': loss
         }
 
     def reparameterize(self, mean, log_var):
