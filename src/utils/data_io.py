@@ -132,6 +132,24 @@ def prepare_datasets(hparams):
         computed_dataset = sb.dataio.dataset.DynamicItemDataset(computed_dataset_dict, output_keys=output_keys)
         computed_datasets.append(computed_dataset)
 
+    # compute prior distribution
+    prior = torch.zeros(len(label_encoder))
+    train_dataset = computed_datasets[0]
+    for train_sample in train_dataset:
+        cnncl_phn_seq = train_sample['gt_cnncl_seq']
+        for cnncl_phn in cnncl_phn_seq:
+            prior[cnncl_phn] += 1
+    prior /= torch.sum(prior)
+
+    # @speechbrain.utils.data_pipeline.takes('wav_path')
+    @speechbrain.utils.data_pipeline.provides('prior')
+    def prior_pipeline():
+        return prior
+
+    output_keys += ['prior']
+    sb.dataio.dataset.add_dynamic_item(computed_datasets, prior_pipeline)
+    sb.dataio.dataset.set_output_keys(computed_datasets, output_keys)
+
     test = computed_datasets[0][0]
     # for dataset in computed_datasets:
     #     for data_sample in dataset:
@@ -140,6 +158,9 @@ def prepare_datasets(hparams):
     #             if key.startswith('flvl_'):
     #                 print(key, data_sample[key].shape[0])
     #                 assert data_sample[key].shape[0] == n_frames
+
+
+
 
     return computed_datasets, label_encoder
 
