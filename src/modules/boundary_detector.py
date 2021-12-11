@@ -3,6 +3,7 @@ import functools
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn.utils.rnn import pad_sequence
 
 from speechbrain.nnet.losses import compute_masked_loss
 
@@ -43,7 +44,8 @@ class BoundaryDetector(nn.Module):
         v_beta = v_beta + eps
 
         # compute kld loss
-        kld_loss = compute_masked_loss(self.compute_kld_loss, v_alpha, v_beta, length=feat_lens)
+        # kld_loss = compute_masked_loss(self.compute_kld_loss, v_alpha, v_beta, length=feat_lens)
+        kld_loss = self.compute_kld_loss(v_alpha, v_beta)
 
         # sample M times
         sample_times = 10
@@ -52,6 +54,7 @@ class BoundaryDetector(nn.Module):
             'boundary_kld_loss': kld_loss
         }
         boundary_v = None
+        bce_loss_list = []
         for _ in range(sample_times):
             # sample u
             uniform_u = torch.rand_like(v_alpha)
@@ -72,12 +75,13 @@ class BoundaryDetector(nn.Module):
             #         if not 0 < boundary_v_i[i, j] < 1:
             #             raise ValueError(f'Invalid values: u = {uniform_u[i, j]}, alpha = {v_alpha[i, j]}, ' +
             #                              f'beta = {v_beta[i, j]}, boundary_v = {boundary_v_i[i, j]}')
-            loss_fn = functools.partial(F.binary_cross_entropy, reduction='none')
-            bce_loss = compute_masked_loss(loss_fn, boundary_v_i, boundary_seqs, length=feat_lens)
-            losses['boundary_bce_loss'] = losses['boundary_bce_loss'] + bce_loss
+            # loss_fn = functools.partial(F.binary_cross_entropy, reduction='none')
+            # bce_loss = compute_masked_loss(loss_fn, boundary_v_i, boundary_seqs, length=feat_lens)
+            bce_loss = F.binary_cross_entropy(boundary_v_i, boundary_seqs, reduction='none')
+            losses['boundary_bce_loss'] += bce_loss
 
         boundary_v = boundary_v / sample_times
-        losses['boundary_bce_loss'] = losses['boundary_bce_loss'] / sample_times
+        losses['boundary_bce_loss'] /= sample_times
 
         ret = {
             'boundary_v': boundary_v,
