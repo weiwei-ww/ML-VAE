@@ -1,0 +1,170 @@
+n_epochs: 50
+
+epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter
+    limit: !ref <n_epochs>
+
+normalizer: !new:speechbrain.processing.features.InputNormalization
+    norm_type: global
+
+# model parameters
+
+# FC for feats
+feat_fc_size: 64
+
+feat_fc: !new:modules.fc_block.FCBlock
+    fc_sizes:
+        - !ref <input_size>
+        - !ref <feat_fc_size>
+        - !ref <feat_fc_size>
+    end_activation: True
+
+# phoneme recognizer
+phn_rnn_hidden_size: 512
+phn_rnn_num_layers: 2
+phn_fc_size: 128
+
+phoneme_recognizer: !new:modules.phoneme_recognizer.PhonemeRecognizer
+    input_size: !ref <input_size>
+    rnn_hidden_size: !ref <phn_rnn_hidden_size>
+    rnn_num_layers: !ref <phn_rnn_num_layers>
+    fc_sizes:
+        - !ref <phn_rnn_hidden_size>
+        - !ref <phn_fc_size>
+        - !ref <phn_fc_size>
+        - !ref <n_phonemes> + 2
+    n_phonemes: !ref <n_phonemes>
+
+# FC for phoneme recognizer output
+phn_recog_fc_size: 32
+
+phn_recog_fc: !new:modules.fc_block.FCBlock
+    fc_sizes:
+        - !ref <n_phonemes> + 2
+        - !ref <phn_recog_fc_size>
+        - !ref <phn_recog_fc_size>
+    end_activation: True
+    
+# boundary detector
+boundary_rnn_hidden_size: 512
+boundary_rnn_num_layers: 2
+boundary_fc_size: 128
+
+boundary_detector: !new:modules.boundary_detector.BoundaryDetector
+    input_size: !ref <input_size>
+    rnn_hidden_size: !ref <boundary_rnn_hidden_size>
+    rnn_num_layers: !ref <boundary_rnn_num_layers>
+    fc_sizes:
+        - !ref <boundary_rnn_hidden_size>
+        - !ref <boundary_fc_size>
+        - !ref <boundary_fc_size>
+        - 1
+
+# FC for concatenation
+concat_fc_size: 128
+
+concat_fc: !new:modules.fc_block.FCBlock
+    fc_sizes:
+        - !ref <feat_fc_size> + <phn_recog_fc_size>
+        - !ref <concat_fc_size>
+        - !ref <concat_fc_size>
+    end_activation: True
+
+
+# RNN
+rnn_hidden_size: 512
+rnn_num_layers: 2
+rnn_dropout: 0.15
+
+rnn: !new:torch.nn.LSTM
+    input_size: !ref <concat_fc_size>
+    hidden_size: !ref <rnn_hidden_size>
+    num_layers: !ref <rnn_num_layers>
+    batch_first: True
+    dropout: !ref <rnn_dropout>
+
+# Pi FC
+pi_fc_size: 128
+
+pi_fc: !new:modules.fc_block.FCBlock
+    fc_sizes:
+        - !ref <rnn_hidden_size>
+        - !ref <pi_fc_size>
+        - !ref <pi_fc_size> // 2
+        - 2
+
+# VAE encoder
+latent_size: 32
+num_components: 3
+
+enc_fc_size: 64
+
+encoder: !new:modules.h_vae.HierarchicalVAE
+    fc_sizes:
+        - !ref <rnn_hidden_size>
+        - !ref <enc_fc_size>
+        - !ref <enc_fc_size>
+    latent_size: !ref <latent_size>
+    num_components: !ref <num_components>
+
+# VAE decoder
+dec_rnn_hidden_size: 512
+dec_rnn_num_layers: 2
+dec_rnn_dropout: 0.15
+dec_fc_size: 64
+
+decoder: !new:modules.decoder.Decoder
+    input_size: !ref <latent_size>
+    rnn_hidden_size: !ref <dec_rnn_hidden_size>
+    rnn_num_layers: !ref <dec_rnn_num_layers>
+    rnn_dropout: !ref <dec_rnn_dropout>
+    fc_sizes:
+        - !ref <dec_rnn_hidden_size> * 2
+        - !ref <dec_fc_size>
+        - !ref <dec_fc_size>
+        - !ref <input_size>
+
+lr: 0.001
+optimizer: !name:torch.optim.Adam
+    lr: !ref <lr>
+
+modules:
+    feat_fc: !ref <feat_fc>
+    phoneme_recognizer: !ref <phoneme_recognizer>
+    phn_recog_fc: !ref <phn_recog_fc>
+    boundary_detector: !ref <boundary_detector>
+    concat_fc: !ref <concat_fc>
+    rnn: !ref <rnn>
+    pi_fc: !ref <pi_fc>
+    encoder: !ref <encoder>
+    decoder: !ref <decoder>
+
+# checkpointer
+checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
+    checkpoints_dir: !ref <output_dir>/checkpoints
+    recoverables:
+        feat_fc: !ref <feat_fc>
+        phoneme_recognizer: !ref <phoneme_recognizer>
+        phn_recog_fc: !ref <phn_recog_fc>
+        boundary_detector: !ref <boundary_detector>
+        concat_fc: !ref <concat_fc>
+        rnn: !ref <rnn>
+        pi_fc: !ref <pi_fc>
+        encoder: !ref <encoder>
+        decoder: !ref <decoder>
+        epoch_counter: !ref <epoch_counter>
+
+# loss weights
+vae_kld_weight: 0.001
+
+# evaluation metrics
+metric_keys:
+    - phn_recog_bce_loss
+    - boundary_bce_loss
+    - boundary_kld_loss
+    - vae_kld_loss
+    - recon_loss
+    - plvl_md.PRE
+    - plvl_md.REC
+    - plvl_md.F1
+
+min_key: loss
