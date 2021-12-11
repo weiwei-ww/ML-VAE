@@ -12,6 +12,9 @@ class MDMetricStats(BaseMetricStats):
     def summarize(self, field=None):
         mean_scores = super(MDMetricStats, self).summarize()
 
+        if mean_scores is None:
+            return mean_scores
+
         eps = 1e-6
         PRE = mean_scores['PRE']
         REC = mean_scores['REC']
@@ -94,26 +97,26 @@ def binary_seq_md_scoring(prediction, target):
 
 
 def batch_seq_md_scoring(
-        batch_pred_md_lbl_seqs=None,
-        batch_pred_phn_seqs=None,
-        batch_gt_md_lbl_seqs=None,
-        batch_gt_phn_seqs=None,
-        batch_gt_cnncl_seqs=None
+        pred_md_lbl_seqs=None,
+        pred_phn_seqs=None,
+        gt_md_lbl_seqs=None,
+        gt_phn_seqs=None,
+        gt_cnncl_seqs=None
 ):
     """
     Compute MD scores for a batch.
 
     Parameters
     ----------
-    batch_pred_md_lbl_seqs : list
+    pred_md_lbl_seqs : list
         list of predicted MD labels
-    batch_pred_phn_seqs : list
+    pred_phn_seqs : list
         list of predicted phonemes
-    batch_gt_md_lbl_seqs : list
+    gt_md_lbl_seqs : list
         list of ground truth MD labels
-    batch_gt_phn_seqs : list
+    gt_phn_seqs : list
         list of ground truth phonemes
-    batch_gt_cnncl_seqs : list
+    gt_cnncl_seqs : list
         list of ground truth canonicals
 
     Returns
@@ -123,7 +126,7 @@ def batch_seq_md_scoring(
 
     """
     # check input
-    for x in [batch_pred_md_lbl_seqs, batch_pred_phn_seqs, batch_gt_md_lbl_seqs, batch_gt_phn_seqs, batch_gt_cnncl_seqs]:
+    for x in [pred_md_lbl_seqs, pred_phn_seqs, gt_md_lbl_seqs, gt_phn_seqs, gt_cnncl_seqs]:
         if x is not None and not isinstance(x, list):
             raise TypeError(f'Input type must be list, not {type(x).__name__}')
 
@@ -147,17 +150,17 @@ def batch_seq_md_scoring(
             batch_md_lbl_seqs.append(md_lbl_seq)
         return batch_md_lbl_seqs
 
-    if batch_pred_md_lbl_seqs is None:
-        batch_pred_md_lbl_seqs = generate_batch_md_lbls(batch_pred_phn_seqs, batch_gt_cnncl_seqs)
-    if batch_gt_md_lbl_seqs is None:
-        batch_gt_md_lbl_seqs = generate_batch_md_lbls(batch_gt_phn_seqs, batch_gt_cnncl_seqs)
+    if pred_md_lbl_seqs is None:
+        pred_md_lbl_seqs = generate_batch_md_lbls(pred_phn_seqs, gt_cnncl_seqs)
+    if gt_md_lbl_seqs is None:
+        gt_md_lbl_seqs = generate_batch_md_lbls(gt_phn_seqs, gt_cnncl_seqs)
 
     # compute MD scores for each sample in the batch
-    if len(batch_pred_md_lbl_seqs) != len(batch_gt_md_lbl_seqs):
-        raise ValueError(f'Inconsistent batch size: {len(batch_pred_md_lbl_seqs)} != {len(batch_gt_md_lbl_seqs)}')
+    if len(pred_md_lbl_seqs) != len(gt_md_lbl_seqs):
+        raise ValueError(f'Inconsistent batch size: {len(pred_md_lbl_seqs)} != {len(gt_md_lbl_seqs)}')
 
     batch_md_scores = []
-    for pred_md_lbl_seq, gt_md_lbl_seq in zip(batch_pred_md_lbl_seqs, batch_gt_md_lbl_seqs):
+    for pred_md_lbl_seq, gt_md_lbl_seq in zip(pred_md_lbl_seqs, gt_md_lbl_seqs):
         md_scores = binary_seq_md_scoring(pred_md_lbl_seq, gt_md_lbl_seq)
         batch_md_scores.append(md_scores)
 

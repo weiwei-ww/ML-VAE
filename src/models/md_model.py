@@ -125,7 +125,9 @@ class MDModel(sb.Brain):
             stats = self.stats_loggers[f'{metric_key_list[0].lower()}_stats']
             stats_key = None if len(metric_key_list) == 1 else metric_key_list[1]
 
-            log_metrics[metric_key] = round(float(stats.summarize(stats_key)), 2)
+            summarized_stats = stats.summarize(stats_key)
+            if summarized_stats is not None:
+                log_metrics[metric_key] = round(float(summarized_stats), 2)
 
         if stage == sb.Stage.TRAIN or stage == sb.Stage.VALID:
             # log stats
