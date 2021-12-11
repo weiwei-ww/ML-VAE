@@ -4,7 +4,6 @@ import torch.nn.functional as F
 from torch.nn.utils.rnn import pad_sequence
 
 from modules.fc_block import FCBlock
-from utils.data_utils import undo_padding_tensor
 
 
 class PhonemeRecognizer(nn.Module):
