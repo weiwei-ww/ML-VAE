@@ -1,4 +1,5 @@
 import logging
+import warnings
 from pathlib import Path
 
 import torch
@@ -110,24 +111,27 @@ class MDModel(sb.Brain):
         if self.debug and stage == sb.Stage.TRAIN:
             logger.info(f'{torch.cuda.memory_allocated()} {torch.cuda.max_memory_allocated()}')
 
-    def on_stage_end(self, stage, stage_loss, epoch=None, log_metrics={}):
-        if log_metrics is None:
-            log_metrics = {}
+    def on_stage_end(self, stage, stage_loss, epoch=None):
         stage_name = str(stage).split('.')[1].lower()
 
         if epoch is None:
             epoch = self.hparams.epoch_counter.current
 
         # get metrics
-        log_metrics['loss'] = round(stage_loss, 3)
+        # log_metrics['loss'] = round(stage_loss, 3)
+        log_metrics = {'loss': round(stage_loss, 3)}
         for metric_key in self.hparams.metric_keys:  # e.g. metric_key = 'PER' or 'md.F1'
             metric_key_list = metric_key.split('.')
-            stats = self.stats_loggers[f'{metric_key_list[0].lower()}_stats']
-            stats_key = None if len(metric_key_list) == 1 else metric_key_list[1]
+            stats_logger_key = f'{metric_key_list[0].lower()}_stats'
+            stats = self.stats_loggers.get(stats_logger_key)
+            if stats is not None:
+                stats_key = None if len(metric_key_list) == 1 else metric_key_list[1]
 
-            summarized_stats = stats.summarize(stats_key)
-            if summarized_stats is not None:
-                log_metrics[metric_key] = round(float(summarized_stats), 2)
+                summarized_stats = stats.summarize(stats_key)
+                if summarized_stats is not None:
+                    log_metrics[metric_key] = round(float(summarized_stats), 2)
+            else:
+                logger.warning(f'stats logger not found for {metric_key} in epoch {epoch}, stage {stage}')
 
         if stage == sb.Stage.TRAIN or stage == sb.Stage.VALID:
             # log stats
@@ -186,7 +190,11 @@ class MDModel(sb.Brain):
             loss += weight * losses[loss_key]
 
             # save loss
-            loss_metric_stats_key = loss_key + '_stats'
-            self.stats_loggers[loss_metric_stats_key].append(losses[loss_key])
+            loss_stats_logger_key = loss_key + '_stats'
+            loss_stats_logger = self.stats_loggers.get(loss_stats_logger_key)
+            if loss_stats_logger is not None:
+                self.stats_loggers[loss_stats_logger_key].append(losses[loss_key])
+            else:
+                logger.warning(f'loss stats logger {loss_stats_logger_key} not found')
 
         return loss
