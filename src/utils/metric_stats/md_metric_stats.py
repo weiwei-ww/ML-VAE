@@ -12,9 +12,6 @@ class MDMetricStats(BaseMetricStats):
     def summarize(self, field=None):
         mean_scores = super(MDMetricStats, self).summarize()
 
-        if mean_scores is None:
-            return mean_scores
-
         eps = 1e-6
         PRE = mean_scores['PRE']
         REC = mean_scores['REC']

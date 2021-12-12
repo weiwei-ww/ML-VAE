@@ -21,8 +21,7 @@ class BaseMetricStats:
 
     def summarize(self, field=None):
         if len(self.metric_keys) == 0:
-            # raise ValueError('No metrics saved yet')
-            return None
+            raise ValueError('No metrics saved yet')
 
         mean_scores = {}
         for key in self.metric_keys:  # calculate average scores
