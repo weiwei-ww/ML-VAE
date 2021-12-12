@@ -37,10 +37,23 @@ def boundary_scoring(prediction, target):
     boundary_scores : dict
         Boundary metrics.
     """
+    # check input
+    def check_input(input_value):
+        if isinstance(input_value, list):
+            input_value = torch.tensor(input_value)
+        elif isinstance(input_value, np.ndarray):
+            input_value = torch.from_numpy(input_value)
+        elif not isinstance(input_value, torch.Tensor):
+            raise ValueError(f'invalid input type: {type(input_value)}')
+        return input_value
+
+    prediction = check_input(prediction)
+    target = check_input(target)
+
     if prediction.ndim != 1 or target.ndim != 1:
-        raise ValueError('Only one-dimensional inputs are supported')
+        raise ValueError('only one-dimensional inputs are supported')
     if len(prediction) != len(target):
-        raise ValueError(f'Inconsistent input lengths: {len(prediction)} != {len(target)}')
+        raise ValueError(f'inconsistent input lengths: {len(prediction)} != {len(target)}')
 
     # convert boundary sequence into index sequence
     prediction_index_seq = torch.where(prediction == 1)[0]
