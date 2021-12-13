@@ -128,10 +128,8 @@ class MDModel(sb.Brain):
                 stats_key = None if len(metric_key_list) == 1 else metric_key_list[1]
 
                 summarized_stats = stats.summarize(stats_key)
-                if summarized_stats is not None:
-                    log_metrics[metric_key] = round(float(summarized_stats), 2)
-            else:
-                logger.warning(f'stats logger not found for {metric_key} in epoch {epoch}, stage {stage}')
+                # if summarized_stats is not None:
+                log_metrics[metric_key] = round(float(summarized_stats), 2)
 
         if stage == sb.Stage.TRAIN or stage == sb.Stage.VALID:
             # log stats
@@ -195,6 +193,7 @@ class MDModel(sb.Brain):
             if loss_stats_logger is not None:
                 self.stats_loggers[loss_stats_logger_key].append(losses[loss_key])
             else:
-                logger.warning(f'loss stats logger {loss_stats_logger_key} not found')
+                # logger.warning(f'loss stats logger {loss_stats_logger_key} not found')
+                warnings.warn(f'loss stats logger {loss_stats_logger_key} not found')
 
         return loss
