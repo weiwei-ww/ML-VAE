@@ -2,6 +2,7 @@ import logging
 from tqdm import tqdm
 import pickle
 from pathlib import Path
+import copy
 import librosa
 
 import torch
@@ -12,6 +13,19 @@ import speechbrain.dataio.encoder
 import speechbrain.utils.data_pipeline
 
 logger = logging.getLogger(__name__)
+
+output_keys = [
+    'id',
+    'wav', 'aug_wav',  # wave form
+    'feat', 'aug_feat',  # feature
+    'gt_phn_seq', 'gt_cnncl_seq',  # encoded phonemes
+    'flvl_gt_phn_seq', 'flvl_gt_cnncl_seq',  # frame level phonemes
+    'aug_flvl_gt_cnncl_seq', 'aug_flvl_gt_cnncl_seq',  # frame level phoneme with augmentation
+    'plvl_gt_md_lbl_seq', 'flvl_gt_md_lbl_seq', 'aug_flvl_gt_md_lbl_seq',  # phoneme and frame level MD ground truth
+    'fa_segmentation', 'gt_segmentation',  # ground truth and forced alignment segmentation
+    'fa_boundary_seq', 'fa_phn_end_seq',  # forced alignment boundary sequence
+    'gt_boundary_seq', 'gt_phn_end_seq'  # ground truth boundary sequence
+]
 
 def generate_flvl_annotation(label_encoder, feat, duration, segmentation, phoneme_list):
     """
@@ -86,7 +100,7 @@ def generate_boundary_seq(id, feat, duration, segmentation):
         while boundary_seq[start_index] == 1:
             start_index += 1
             count += 1
-            print(f'move {count}')
+            # print(f'move {count}')
         boundary_seq[start_index] = 1
 
     phn_end_seq = torch.zeros(len(segmentation))
@@ -97,70 +111,69 @@ def generate_boundary_seq(id, feat, duration, segmentation):
     return boundary_seq, phn_end_seq
 
 
+def get_label_encoder(hparams):
+    """
+    Get label encoder.
+
+    Parameters
+    ----------
+    hparams : dict
+        Loaded hparams.
+
+    Returns
+    -------
+    label_encoder : sb.dataio.encoder.CTCTextEncoder
+        The label encoder for the dataset.
+    """
+    label_encoder = sb.dataio.encoder.CTCTextEncoder()
+    phoneme_set = hparams['prepare']['phoneme_set_handler'].get_phoneme_set()
+    label_encoder.update_from_iterable(phoneme_set, sequence_input=False)
+    label_encoder.insert_blank(index=hparams['blank_index'])
+    return label_encoder
+
+
 def prepare_datasets(hparams):
     logger.info('Preparing datasets.')
-    datasets, label_encoder = data_io_prep(hparams)
+    computed_dataset_dir = Path(hparams['prepare']['dataset_dir']).parent / 'computed_dataset'
 
-    logger.info('Preparing computed datasets.')
-    computed_datasets = []
+    # check if pre-computed datasets exist
     set_names = ['train', 'valid', 'test']
-    output_keys = ['id']
-    for set_name, dataset in zip(set_names, datasets):  # prepare dataset for train, valid, and test sets
-        pkl_path = Path(hparams['prepare']['dataset_dir']).parent / 'computed_dataset' / f'{set_name}.pkl'
+    to_prepare = False
+    for set_name in set_names:
+        pkl_path = computed_dataset_dir / f'{set_name}.pkl'
         if not pkl_path.exists():  # prepare computed dataset
-            logger.info(f'Computed dataset for {set_name} set does not exist, start preparing it')
+            to_prepare = True
+
+    # prepare dataset or load pre-computed datasets
+    computed_datasets = []
+    if to_prepare:
+        logger.info('One or more computed datasets do not exist, start preparing them.')
+        datasets = data_io_prep(hparams)
+        for set_name, dataset in zip(set_names, datasets):  # prepare dataset for train, valid, and test sets
+            pkl_path = computed_dataset_dir / f'{set_name}.pkl'
             pkl_path.parent.mkdir(exist_ok=True)
             computed_dataset_dict = {}
             for data_sample in tqdm(dataset):  # for each data sample
                 data_id = data_sample['id']  # get ID
                 data_sample_dict = {}  # data sample content as a dictionary
-                for key in data_sample:
+                for key in output_keys:
                     if key != 'id':
-                        data_sample_dict[key] = data_sample[key]
+                        data_sample_dict[key] = copy.deepcopy(data_sample[key]) # use deep copy to prevent errors
                 computed_dataset_dict[data_id] = data_sample_dict
             # save the computed dataset
             with open(pkl_path, 'wb') as f:
                 pickle.dump(computed_dataset_dict, f)
-        else:  # load computed dataset from disk
-            logger.info(f'Load computed dataset for {set_name} set')
-            with open(pkl_path, 'rb') as f:
-                computed_dataset_dict = pickle.load(f)
+    else:
+        logger.info('Load pre-computed datasets.')
 
-        if len(output_keys) == 1:
-            output_keys.extend(computed_dataset_dict[list(computed_dataset_dict.keys())[0]].keys())
-
+    for set_name in set_names:
+        pkl_path = computed_dataset_dir / f'{set_name}.pkl'
+        with open(pkl_path, 'rb') as f:
+            computed_dataset_dict = pickle.load(f)
         computed_dataset = sb.dataio.dataset.DynamicItemDataset(computed_dataset_dict, output_keys=output_keys)
         computed_datasets.append(computed_dataset)
 
-    # compute prior distribution
-    prior = torch.zeros(len(label_encoder))
-    train_dataset = computed_datasets[0]
-    for train_sample in train_dataset:
-        cnncl_phn_seq = train_sample['gt_cnncl_seq']
-        for cnncl_phn in cnncl_phn_seq:
-            prior[cnncl_phn] += 1
-    prior /= torch.sum(prior)
-
-    # @speechbrain.utils.data_pipeline.takes('wav_path')
-    @speechbrain.utils.data_pipeline.provides('prior')
-    def prior_pipeline():
-        return prior
-
-    output_keys += ['prior']
-    sb.dataio.dataset.add_dynamic_item(computed_datasets, prior_pipeline)
-    sb.dataio.dataset.set_output_keys(computed_datasets, output_keys)
-
-    test = computed_datasets[0][0]
-    # for dataset in computed_datasets:
-    #     for data_sample in dataset:
-    #         n_frames = data_sample['feat'].shape[0]
-    #         for key in data_sample:
-    #             if key.startswith('flvl_'):
-    #                 print(key, data_sample[key].shape[0])
-    #                 assert data_sample[key].shape[0] == n_frames
-
-
-
+    label_encoder = get_label_encoder(hparams)
 
     return computed_datasets, label_encoder
 
@@ -183,7 +196,7 @@ def data_io_prep(hparams):
     test_dataset = dataset_prep(hparams, 'test')
     datasets = [train_dataset, valid_dataset, test_dataset]
 
-    label_encoder = sb.dataio.encoder.CTCTextEncoder()
+    label_encoder = get_label_encoder(hparams)
 
     # audio pipelines
     @speechbrain.utils.data_pipeline.takes('wav_path')
@@ -288,15 +301,32 @@ def data_io_prep(hparams):
     ]
     sb.dataio.dataset.set_output_keys(datasets, output_keys)
 
-    # fit the label encoder
-    phoneme_set = hparams['prepare']['phoneme_set_handler'].get_phoneme_set()
-    label_encoder.update_from_iterable(phoneme_set, sequence_input=False)
-    label_encoder.insert_blank(index=hparams['blank_index'])
+    # compute prior distribution
+    prior = torch.zeros(len(label_encoder))
+    for train_sample in tqdm(train_dataset):
+        cnncl_phn_seq = train_sample['gt_cnncl_seq']
+        for cnncl_phn in cnncl_phn_seq:
+            prior[cnncl_phn] += 1
+    prior /= torch.sum(prior)
 
-    test = datasets[0][0]
-    # for key in test:
-    #     print('-' * 500)
-    #     print(key)
-    #     print(test[key])
+    @speechbrain.utils.data_pipeline.provides('prior')
+    def prior_pipeline():
+        return prior
 
-    return (train_dataset, valid_dataset, test_dataset), label_encoder
+    output_keys += ['prior']
+    sb.dataio.dataset.add_dynamic_item(datasets, prior_pipeline)
+    sb.dataio.dataset.set_output_keys(datasets, output_keys)
+
+    # for test in [train_dataset, valid_dataset, test_dataset]:
+    #     test = test[0]
+    #
+    # print(len(train_dataset), len(valid_dataset), len(test_dataset))
+    #
+    # for i in range(len(train_dataset)):
+    #     print('train', i, train_dataset[i]['id'])
+    # for i in range(len(valid_dataset)):
+    #     print('valid', i, valid_dataset[i]['id'])
+    # for i in range(len(test_dataset)):
+    #     print('test', i, test_dataset[i]['id'])
+
+    return train_dataset, valid_dataset, test_dataset
