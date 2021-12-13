@@ -49,8 +49,8 @@ class SBModel(MDModel):
         pout_lens = batch['feat'][1]
 
         # compute CTC loss
-        phns, phn_lens = batch['gt_cnncl_seq']
-        loss = ctc_loss(pout, phns, pout_lens, phn_lens, self.label_encoder.get_blank_index())
+        cnncl_phns, cnncl_phn_lens = batch['gt_cnncl_seq']
+        loss = ctc_loss(pout, cnncl_phns, pout_lens, cnncl_phn_lens, self.label_encoder.get_blank_index())
 
         # compute PER
         pred_phns = sb.decoders.ctc_greedy_decode(
