@@ -243,11 +243,11 @@ def decode_plvl_md_lbl_seqs_full(
 
     # decoded_boundary_seqs = {}
     # flvl_md_lbl_seqs = torch.zeros_like(boundary_v)  # shape = (B, T)
-    # plvl_md_lvl_seqs = torch.zeros_like(y)  # shape = (B, L)
+    # plvl_md_lbl_seqs = torch.zeros_like(y)  # shape = (B, L)
     
     decoded_boundary_seqs = []
     flvl_md_lbl_seqs = []
-    plvl_md_lvl_seqs = []
+    plvl_md_lbl_seqs = []
     
     for i, utt_id in enumerate(utt_ids):
         T_i = feat_lens[i]
@@ -358,12 +358,12 @@ def decode_plvl_md_lbl_seqs_full(
 
         # save phoneme mdd results
         flvl_md_lbl_seqs.append(frame_mdd_ret_i)
-        plvl_md_lvl_seqs.append(phoneme_mdd_ret_i)
+        plvl_md_lbl_seqs.append(phoneme_mdd_ret_i)
 
-    print(f'{np.sum([np.sum(l) for l in flvl_md_lbl_seqs])}/{np.sum([len(l) for l in flvl_md_lbl_seqs])}')
-    print(f'{np.sum([np.sum(l) for l in plvl_md_lvl_seqs])}/{np.sum([len(l) for l in plvl_md_lvl_seqs])}')
+    # print(f'{np.sum([np.sum(l) for l in flvl_md_lbl_seqs])}/{np.sum([len(l) for l in flvl_md_lbl_seqs])}')
+    # print(f'{np.sum([np.sum(l) for l in plvl_md_lbl_seqs])}/{np.sum([len(l) for l in plvl_md_lbl_seqs])}')
 
-    return decoded_boundary_seqs, flvl_md_lbl_seqs, plvl_md_lvl_seqs
+    return decoded_boundary_seqs, flvl_md_lbl_seqs, plvl_md_lbl_seqs
 
 
 
