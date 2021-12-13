@@ -2,8 +2,8 @@ import logging
 import json
 from pathlib import Path
 from tqdm import tqdm
+import librosa
 
-import speechbrain as sb
 from speechbrain.utils.data_utils import get_all_files
 
 from datasets.L2_ARCTIC.parse_textgrid import parse_textgrid
@@ -90,9 +90,13 @@ def generate_json(json_path, ann_paths, phoneme_set_handler, fa_segmentation):
         # wave file path
         wav_path = f'datasets/L2_ARCTIC/original_dataset/{spk_id}/wav/{ann_path.stem}.wav'
 
+        # get duration
+        y, sr = librosa.load(wav_path, sr=None)
+        duration = y.shape[0] / sr
+
         # parse the TextGrid annotation file
         parsed_tg = parse_textgrid(ann_path, 'all')
-        duration = parsed_tg['end_time'] - parsed_tg['start_time']
+        # duration = parsed_tg['end_time'] - parsed_tg['start_time']
 
         # canonical phonemes
         canonicals = []
