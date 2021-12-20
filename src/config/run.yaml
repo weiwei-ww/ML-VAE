@@ -49,4 +49,5 @@ model: !PLACEHOLDER
     output_dir: !ref <output_dir>
     input_size: !ref <n_mels> * 3
     n_phonemes: !ref <n_phonemes>
+    batch_size: !ref <batch_size>
 
