@@ -3,6 +3,7 @@ import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
+from torch.distributions import Normal
 
 from modules.fc_block import FCBlock
 
@@ -40,6 +41,10 @@ class Decoder(nn.Module):
             eps = 1e-5
             likelihood = -0.5 * (torch.log(2 * torch.tensor(np.pi)) + log_var + (target - mean) ** 2 / (torch.exp(log_var) + eps))
             loss = -likelihood
+
+            sigma = torch.exp(log_var / 2) + eps
+            dist = Normal(loc=mean, scale=sigma)
+            dist_log_ll = dist.log_prob(target)
         elif self.loss_type == 'mse':
             loss = F.mse_loss(target, mean, reduction='none')
         else:
