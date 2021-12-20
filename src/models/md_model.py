@@ -184,7 +184,14 @@ class MDModel(sb.Brain):
         for loss_key in losses:
             # compute weighted loss
             weight_key = loss_key.replace('_loss', '_weight')
-            weight = getattr(self.hparams, weight_key, 1)
+            weight = getattr(self.hparams, weight_key, 'none')
+            if weight == 'none':
+                warnings.warn(f'{weight_key} not found, use 1 as default')
+                weight = 1
+            if '_kld' in weight_key:
+                n_samples = 2249
+                batch_size = self.hparams.batch_size
+                weight /= (n_samples / batch_size)
             loss += weight * losses[loss_key]
 
             # save loss
