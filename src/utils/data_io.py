@@ -24,7 +24,8 @@ output_keys = [
     'plvl_gt_md_lbl_seq', 'flvl_gt_md_lbl_seq', 'aug_flvl_gt_md_lbl_seq',  # phoneme and frame level MD ground truth
     'fa_segmentation', 'gt_segmentation',  # ground truth and forced alignment segmentation
     'fa_boundary_seq', 'fa_phn_end_seq',  # forced alignment boundary sequence
-    'gt_boundary_seq', 'gt_phn_end_seq'  # ground truth boundary sequence
+    'gt_boundary_seq', 'gt_phn_end_seq',  # ground truth boundary sequence
+    'prior'
 ]
 
 def generate_flvl_annotation(label_encoder, feat, duration, segmentation, phoneme_list):
@@ -175,6 +176,10 @@ def prepare_datasets(hparams):
 
     label_encoder = get_label_encoder(hparams)
 
+    # save label_encoder
+    label_encoder_path = computed_dataset_dir / 'label_encoder.txt'
+    label_encoder.save(label_encoder_path)
+
     return computed_datasets, label_encoder
 
 
@@ -287,19 +292,7 @@ def data_io_prep(hparams):
     sb.dataio.dataset.add_dynamic_item(datasets, fa_boundary_seq_pipeline)
 
     # set output keys
-    output_keys = [
-        'id',
-        'wav', 'aug_wav',  # wave form
-        'feat', 'aug_feat',  # feature
-        'gt_phn_seq', 'gt_cnncl_seq',  # encoded phonemes
-        'flvl_gt_phn_seq', 'flvl_gt_cnncl_seq',  # frame level phonemes
-        'aug_flvl_gt_cnncl_seq', 'aug_flvl_gt_cnncl_seq',  # frame level phoneme with augmentation
-        'plvl_gt_md_lbl_seq', 'flvl_gt_md_lbl_seq', 'aug_flvl_gt_md_lbl_seq',  # phoneme and frame level MD ground truth
-        'fa_segmentation', 'gt_segmentation',  # ground truth and forced alignment segmentation
-        'fa_boundary_seq', 'fa_phn_end_seq',  # forced alignment boundary sequence
-        'gt_boundary_seq', 'gt_phn_end_seq'  # ground truth boundary sequence
-    ]
-    sb.dataio.dataset.set_output_keys(datasets, output_keys)
+    sb.dataio.dataset.set_output_keys(datasets, ['gt_cnncl_seq'])
 
     # compute prior distribution
     prior = torch.zeros(len(label_encoder))
@@ -313,20 +306,9 @@ def data_io_prep(hparams):
     def prior_pipeline():
         return prior
 
-    output_keys += ['prior']
     sb.dataio.dataset.add_dynamic_item(datasets, prior_pipeline)
-    sb.dataio.dataset.set_output_keys(datasets, output_keys)
 
-    # for test in [train_dataset, valid_dataset, test_dataset]:
-    #     test = test[0]
-    #
-    # print(len(train_dataset), len(valid_dataset), len(test_dataset))
-    #
-    # for i in range(len(train_dataset)):
-    #     print('train', i, train_dataset[i]['id'])
-    # for i in range(len(valid_dataset)):
-    #     print('valid', i, valid_dataset[i]['id'])
-    # for i in range(len(test_dataset)):
-    #     print('test', i, test_dataset[i]['id'])
+    # set output keys
+    sb.dataio.dataset.set_output_keys(datasets, output_keys)
 
     return train_dataset, valid_dataset, test_dataset
