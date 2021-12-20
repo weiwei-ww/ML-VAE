@@ -54,10 +54,10 @@ def prepare(dataset_dir, train_json_path, valid_json_path, test_json_path, phone
         if not json_path.exists():
             skip = False
     if skip:
-        logger.info('skip preparation')
+        logger.info('Skip preparation.')
         return
 
-    logger.info('generate json files')
+    logger.info('Generate json files.')
 
     # load forced alignment segmentation
     fa_seg_json_path = dataset_dir.parent / 'fa_segmentation.json'
