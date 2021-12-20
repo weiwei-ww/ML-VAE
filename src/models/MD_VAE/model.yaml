@@ -156,7 +156,7 @@ checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
 # loss weights
 boundary_kld_weight: 0.00001
 vae_kld_weight: 0.00001
-pi_nll_loss: 0.001
+pi_nll_weight: 0.001
 
 
 
@@ -168,9 +168,11 @@ metric_keys:
     - pi_nll_loss
     - vae_kld_loss
     - recon_loss
+    - plvl_md.ACC
     - plvl_md.PRE
     - plvl_md.REC
     - plvl_md.F1
     - boundary.f1
+    - boundary.r_value
 
 max_key: plvl_md.F1
