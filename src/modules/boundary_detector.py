@@ -4,6 +4,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pad_sequence
+from torch.distributions import Beta
+from torch.distributions.kl import kl_divergence
 
 from speechbrain.nnet.losses import compute_masked_loss
 
@@ -54,7 +56,6 @@ class BoundaryDetector(nn.Module):
             'boundary_kld_loss': kld_loss
         }
         boundary_v = None
-        bce_loss_list = []
         for _ in range(sample_times):
             # sample u
             uniform_u = torch.rand_like(v_alpha)
@@ -91,6 +92,17 @@ class BoundaryDetector(nn.Module):
         return ret
 
     def compute_kld_loss(self, alpha, beta):  # shape = (B, T)
+        dist = Beta(alpha, beta)
+
+        prior_alpha = torch.tensor(1.0)
+        prior_beta = torch.tensor(9.0)
+        prior_dist = Beta(prior_alpha, prior_beta)
+
+        kld = kl_divergence(dist, prior_dist)
+
+        return kld
+
+    def compute_kld_loss_approx(self, alpha, beta):  # shape = (B, T)
         prior_alpha = torch.tensor(1.0)
         prior_beta = torch.tensor(9.0)
 
