@@ -82,9 +82,16 @@ class SBModel(MDModel):
 
         self.stats_loggers['plvl_md_stats'].append(
             batch['id'],
-            batch_pred_phn_seqs=ali_pred_phn_seqs,
-            batch_gt_phn_seqs=ali_gt_phn_seqs,
-            batch_gt_cnncl_seqs=ali_gt_cnncl_seqs
+            pred_phn_seqs=ali_pred_phn_seqs,
+            gt_phn_seqs=ali_gt_phn_seqs,
+            gt_cnncl_seqs=ali_gt_cnncl_seqs
         )
 
         return loss
+
+    def on_stage_end(self, stage, stage_loss, epoch=None):
+        super(SBModel, self).on_stage_end(stage, stage_loss, epoch)
+
+        if stage == sb.Stage.TEST:
+            output_path = Path(self.hparams.output_dir) / 'test_output' / 'md_result_seqs.txt'
+            self.stats_loggers['plvl_md_stats'].write_seqs_to_file(output_path, self.label_encoder)

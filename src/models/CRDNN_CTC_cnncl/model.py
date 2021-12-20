@@ -8,12 +8,12 @@ from speechbrain.nnet.losses import ctc_loss
 
 import utils.alignment
 from utils.metric_stats.md_metric_stats import MDMetricStats
-from models.md_model import MDModel
+from models.CRDNN_CTC.model import SBModel as CRDNN_CTC
 
 logger = logging.getLogger(__name__)
 
 
-class SBModel(MDModel):
+class SBModel(CRDNN_CTC):
     def on_stage_start(self, stage, epoch=None):
         super(SBModel, self).on_stage_start(stage, epoch)
         # initialize metric stats
@@ -83,9 +83,9 @@ class SBModel(MDModel):
 
         self.stats_loggers['plvl_md_stats'].append(
             batch['id'],
-            batch_pred_phn_seqs=ali_pred_phn_seqs,
-            batch_gt_phn_seqs=ali_gt_phn_seqs,
-            batch_gt_cnncl_seqs=ali_gt_cnncl_seqs
+            pred_phn_seqs=ali_pred_phn_seqs,
+            gt_phn_seqs=ali_gt_phn_seqs,
+            gt_cnncl_seqs=ali_gt_cnncl_seqs
         )
 
         return loss
