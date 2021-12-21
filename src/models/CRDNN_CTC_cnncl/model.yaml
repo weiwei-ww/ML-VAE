@@ -75,7 +75,8 @@ wer_file: !ref <output_dir>/wer.txt
 md_metrics_file: !ref <output_dir>/md_metrics.txt
 
 metric_keys:
-    - per.error_rate
+    - phn_per.error_rate
+    - cnncl_per.error_rate
     - plvl_md.ACC
     - plvl_md.PRE
     - plvl_md.REC

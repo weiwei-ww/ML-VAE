@@ -17,11 +17,9 @@ class SBModel(MDModel):
     def on_stage_start(self, stage, epoch=None):
         super(SBModel, self).on_stage_start(stage, epoch)
         # initialize metric stats
-        per_stats = ErrorRateStats()
-        plvl_md_stats = MDMetricStats()
-
-        self.stats_loggers['per_stats'] = per_stats
-        self.stats_loggers['plvl_md_stats'] = plvl_md_stats
+        self.stats_loggers['phn_per_stats'] = ErrorRateStats()
+        self.stats_loggers['cnncl_per_stats'] = ErrorRateStats()
+        self.stats_loggers['plvl_md_stats'] = MDMetricStats()
 
     def compute_forward(self, batch, stage):
         batch = batch.to(self.device)
@@ -43,24 +41,41 @@ class SBModel(MDModel):
 
         return predictions
 
+    def compute_loss(self, predictions, batch):
+        # get model outputs
+        pout = predictions['pout']
+        pout_lens = batch['feat'][1]
+
+        phns, phn_lens = batch['gt_phn_seq']
+        loss = ctc_loss(pout, phns, pout_lens, phn_lens, self.label_encoder.get_blank_index())
+        return loss
+
     def compute_objectives(self, predictions, batch, stage):
         # get model outputs
         pout = predictions['pout']
         pout_lens = batch['feat'][1]
 
         # compute CTC loss
-        phns, phn_lens = batch['gt_phn_seq']
-        loss = ctc_loss(pout, phns, pout_lens, phn_lens, self.label_encoder.get_blank_index())
+        loss = self.compute_loss(predictions, batch)
 
         # compute PER
-        sequences = sb.decoders.ctc_greedy_decode(
+        pred_phns = sb.decoders.ctc_greedy_decode(
             pout, pout_lens, blank_id=self.label_encoder.get_blank_index()
         )
-        self.stats_loggers['per_stats'].append(
+        phns, phn_lens = batch['gt_phn_seq']
+        self.stats_loggers['phn_per_stats'].append(
             ids=batch.id,
-            predict=sequences,
+            predict=pred_phns,
             target=phns,
             target_len=phn_lens,
+            ind2lab=self.label_encoder.decode_ndim,
+        )
+        cnncls, cnncl_lens = batch['gt_cnncl_seq']
+        self.stats_loggers['cnncl_per_stats'].append(
+            ids=batch.id,
+            predict=pred_phns,
+            target=cnncls,
+            target_len=cnncl_lens,
             ind2lab=self.label_encoder.decode_ndim,
         )
 
