@@ -10,7 +10,8 @@ import speechbrain as sb
 from speechbrain.nnet.losses import compute_masked_loss
 from speechbrain.utils.data_utils import undo_padding
 
-from models.md_model import MDModel
+from models.MD_VAE.model import SBModel as MD_VAE
+from models.MD_VAE.model import Target
 from utils.metric_stats.loss_metric_stats import LossMetricStats
 from utils.metric_stats.md_metric_stats import MDMetricStats
 from utils.metric_stats.boundary_metric_stats import BoundaryMetricStats
@@ -20,14 +21,7 @@ from utils.decode_utils import decode_plvl_md_lbl_seqs_full as decode_plvl_md_lb
 logger = logging.getLogger(__name__)
 
 
-class Target(Enum):
-    PHN_RECOG = auto()
-    B_DETECTOR = auto()
-    VAE = auto()
-    TEST = auto()
-
-
-class SBModel(MDModel):
+class SBModel(MD_VAE):
     def on_stage_start(self, stage, epoch=None):
         super(SBModel, self).on_stage_start(stage, epoch)
 
@@ -190,67 +184,3 @@ class SBModel(MDModel):
             predictions['losses'].update(sfl_losses)
 
         return predictions
-
-    def compute_objectives(self, predictions, batch, stage):
-        # get model outputs
-        original_losses = predictions['losses']
-
-        feats, feat_lens = batch['feat']
-
-        # compute losses
-        losses = {}
-
-        # compute mean loss using lens
-        for key in original_losses:
-            losses[key] = apply_lens_to_loss(original_losses[key], feat_lens)
-
-        # compute and save total loss
-        loss = self.compute_and_save_losses(losses)
-
-        # phoneme classification metrics
-        if (stage == sb.Stage.VALID and self.target == Target.PHN_RECOG) or (stage == sb.Stage.TEST):
-            pass
-
-        # boundary metrics
-        if (stage == sb.Stage.VALID and self.target == Target.B_DETECTOR) or (stage == sb.Stage.TEST):
-            pass
-
-        # MD metrics
-        if self.to_run_evaluation(stage):
-            # decoding
-            plvl_cnnl_seqs, plvl_cnnl_seq_lens = batch['gt_cnncl_seq']
-            weight = getattr(self.hparams, 'dec_weight', 1.0)
-            decoded_boundary_seqs, pred_flvl_md_lbl_seqs, pred_plvl_md_lvl_seqs = decode_plvl_md_lbl_seqs(
-                predictions,
-                utt_ids=batch['id'],
-                feat_lens=feat_lens,
-                plvl_cnnl_seqs=plvl_cnnl_seqs,
-                plvl_cnnl_seq_lens=plvl_cnnl_seq_lens,
-                prior=batch['prior'][0][0],
-                weight=weight
-            )
-
-            # MD metrics
-            gt_md_lbl_seqs = undo_padding(*batch['plvl_gt_md_lbl_seq'])
-            self.stats_loggers['plvl_md_stats'].append(
-                ids=batch['id'],
-                pred_md_lbl_seqs=pred_plvl_md_lvl_seqs,
-                gt_md_lbl_seqs=gt_md_lbl_seqs,
-            )
-
-            # boundary metrics
-            gt_boundary_seqs = undo_padding(*batch['gt_boundary_seq'])
-            self.stats_loggers['boundary_stats'].append(
-                ids=batch['id'],
-                predictions=decoded_boundary_seqs,
-                targets=gt_boundary_seqs
-            )
-
-        return loss
-
-    def on_stage_end(self, stage, stage_loss, epoch=None):
-        if self.to_run_evaluation(stage):
-            super(SBModel, self).on_stage_end(stage, stage_loss, epoch)
-
-    def to_run_evaluation(self, stage):
-        return (stage == sb.Stage.VALID and self.target == Target.VAE) or (stage == sb.Stage.TEST)
