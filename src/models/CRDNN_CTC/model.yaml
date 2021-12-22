@@ -81,6 +81,8 @@ metric_keys:
     - plvl_md.PRE
     - plvl_md.REC
     - plvl_md.F1
+    - plvl_md.correct_per
+    - plvl_md.misp_per
 
 max_key: plvl_md.F1
 

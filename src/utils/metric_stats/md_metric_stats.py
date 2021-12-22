@@ -106,7 +106,7 @@ def binary_seq_md_scoring(prediction, target):
     ACC = (TP + TN) / (TP + TN + FP + FN + eps) * 100
     PRE = TN / (TN + FN + eps) * 100
     REC = TN / (TN + FP + eps) * 100
-    F1 = 2 * PRE * REC / (PRE + REC)
+    F1 = 2 * PRE * REC / (PRE + REC + eps)
 
     md_scores = {
         'ACC': ACC,
@@ -116,6 +116,72 @@ def binary_seq_md_scoring(prediction, target):
     }
 
     return md_scores
+
+def per_scoring(pred_phn_seq, gt_phn_seq, gt_cnncl_seq):
+    """
+    Compute MD scores of two binary sequences.
+
+    Parameters
+    ----------
+    pred_phn_seq :  np.ndarray or torch.Tensor or list
+        Predicted phoneme sequence.
+    gt_phn_seq : np.ndarray or torch.Tensor or list
+        Phoneme sequence.
+    gt_cnncl_seq : np.ndarray or torch.Tensor or list
+        Canonical phoneme sequence.
+
+    Returns
+    -------
+    scores : dict
+        a dictionary of MD scores
+    """
+    # # check input
+    # valid_input_types = (np.ndarray, torch.Tensor, list)
+    # if not isinstance(predict, valid_input_types):
+    #     raise TypeError(f'Unsupported input type: {type(predict).__name__}')
+    # if not isinstance(target, valid_input_types):
+    #     raise TypeError(f'Unsupported input type: {type(target).__name__}')
+
+    # convert to torch.LongTensor
+    def convert_to_tensor(x):
+        if isinstance(x, np.ndarray):
+            x = torch.from_numpy(x)
+        elif isinstance(x, list):
+            x = torch.Tensor(x)
+        elif not isinstance(x, torch.Tensor):
+            raise TypeError(f'Unsupported input type: {type(x).__name__}')
+        x = x.int().squeeze()
+
+        if x.ndim > 1:
+            raise ValueError('Only one-dimension input is allowed')
+
+        return x
+
+    # convert input to tensor
+    gt_phn_seq = convert_to_tensor(gt_phn_seq)
+    gt_cnncl_seq = convert_to_tensor(gt_cnncl_seq)
+    pred_phn_seq = convert_to_tensor(pred_phn_seq)
+
+    if not len(gt_phn_seq) == len(gt_cnncl_seq) == len(pred_phn_seq):
+        raise ValueError(f'Inconsistent lengths: {len(gt_phn_seq)}, {len(gt_cnncl_seq)}, {len(pred_phn_seq)}')
+
+    # compute PER for correct and mispronounced phonemes
+    def compute_per(pred, target):
+        eps = 1e-5
+        return torch.sum(torch.ne(pred, target)) / (len(pred) + eps) * 100
+
+    correct_indices = torch.where(torch.eq(gt_phn_seq, gt_cnncl_seq))[0]
+    misp_indices = torch.where(torch.ne(gt_phn_seq, gt_cnncl_seq))[0]
+
+    correct_per = compute_per(pred_phn_seq[correct_indices], gt_phn_seq[correct_indices])
+    misp_per = compute_per(pred_phn_seq[misp_indices], gt_phn_seq[misp_indices])
+
+    scores = {
+        'correct_per': correct_per,
+        'misp_per': misp_per
+    }
+
+    return scores
 
 
 def batch_seq_md_scoring(
@@ -181,8 +247,13 @@ def batch_seq_md_scoring(
     if len(pred_md_lbl_seqs) != len(gt_md_lbl_seqs):
         raise ValueError(f'Inconsistent batch size: {len(pred_md_lbl_seqs)} != {len(gt_md_lbl_seqs)}')
     md_scores = []
-    for pred_md_lbl_seq, gt_md_lbl_seq in zip(pred_md_lbl_seqs, gt_md_lbl_seqs):
-        md_scores.append(binary_seq_md_scoring(pred_md_lbl_seq, gt_md_lbl_seq))
+    for i in range(len(pred_md_lbl_seqs)):
+    # for pred_md_lbl_seq, gt_md_lbl_seq in zip(pred_md_lbl_seqs, gt_md_lbl_seqs):
+        seq_md_scores = binary_seq_md_scoring(pred_md_lbl_seqs[i], gt_md_lbl_seqs[i])
+        if pred_phn_seqs is not None and gt_phn_seqs is not None and gt_cnncl_seqs is not None:
+            seq_per_scores = per_scoring(pred_phn_seqs[i], gt_phn_seqs[i], gt_cnncl_seqs[i])
+            seq_md_scores.update(seq_per_scores)
+        md_scores.append(seq_md_scores)
 
     # save sequences for writing to the file
     seqs_keys = ['gt_phn_seqs', 'gt_cnncl_seqs', 'gt_md_lbl_seqs', 'pred_phn_seqs', 'pred_md_lbl_seqs']
@@ -190,7 +261,7 @@ def batch_seq_md_scoring(
     for i in range(len(md_scores)):
         L = len(pred_md_lbl_seqs[i])
         def get_seq(seqs, i):
-            if seqs is None:
+            if seqs is None:  # use sil for None sequence
                 return [7] * L
             else:
                 return seqs[i]
