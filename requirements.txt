@@ -3,3 +3,4 @@ torchaudio
 speechbrain
 librosa
 tensorboard
+tgt
