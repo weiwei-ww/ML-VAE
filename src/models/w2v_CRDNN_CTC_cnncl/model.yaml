@@ -26,6 +26,7 @@ wav2vec2: !new:speechbrain.lobes.models.huggingface_wav2vec.HuggingFaceWav2Vec2
     freeze: False
     save_path: !ref <output_dir>/wav2vec2_checkpoint
 
+time_pooling: True
 crdnn: !new:speechbrain.lobes.models.CRDNN.CRDNN
     input_size: 1024
     activation: !ref <activation>
@@ -33,7 +34,7 @@ crdnn: !new:speechbrain.lobes.models.CRDNN.CRDNN
     cnn_blocks: !ref <cnn_blocks>
     cnn_channels: !ref <cnn_channels>
     cnn_kernelsize: !ref <cnn_kernelsize>
-    time_pooling: True
+    time_pooling: !ref <time_pooling>
     rnn_layers: !ref <rnn_layers>
     rnn_neurons: !ref <rnn_neurons>
     rnn_bidirectional: !ref <rnn_bidirectional>
@@ -91,12 +92,14 @@ wer_file: !ref <output_dir>/wer.txt
 md_metrics_file: !ref <output_dir>/md_metrics.txt
 
 metric_keys:
-    - per.error_rate
+    - phn_per.error_rate
+    - cnncl_per.error_rate
     - plvl_md.ACC
     - plvl_md.PRE
     - plvl_md.REC
     - plvl_md.F1
 
-min_key: per.error_rate
+min_key: none
+max_key: none
 
 jit_module_keys: [crdnn]

@@ -149,9 +149,13 @@ class MDModel(sb.Brain):
                 max_keys = []
                 min_keys = []
                 if hasattr(self.hparams, 'max_key'):
-                    max_keys.append(self.hparams.max_key)
+                    if self.hparams.max_key.lower() != 'none':
+                        max_keys.append(self.hparams.max_key)
                 if hasattr(self.hparams, 'min_key'):
-                    min_keys.append(self.hparams.min_key)
+                    if self.hparams.min_key.lower() != 'none':
+                        min_keys.append(self.hparams.min_key)
+                if len(max_keys) == 0 and len(min_keys) == 0:
+                    raise ValueError('no max_key or min_key provided')
                 self.checkpointer.save_and_keep_only(
                     meta=log_metrics, max_keys=max_keys, min_keys=min_keys
                 )
