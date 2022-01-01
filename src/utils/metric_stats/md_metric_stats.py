@@ -48,6 +48,36 @@ class MDMetricStats(BaseMetricStats):
             batch_write_md_results(fp=f, scores_list=self.scores_list, label_encoder=label_encoder, **self.saved_seqs)
 
 
+def convert_to_tensor(x):
+    """
+    Convert input to torch.LongTensor
+
+    Parameters
+    ----------
+    x : list or np.ndarray or torch.tensor
+        Binary one-dimension input.
+
+    Returns
+    -------
+    converted_x : torch.LongTensor
+        Converted input.
+    """
+    if isinstance(x, np.ndarray):
+        x = torch.from_numpy(x)
+    elif isinstance(x, list):
+        x = torch.Tensor(x)
+    elif not isinstance(x, torch.Tensor):
+        raise TypeError(f'Unsupported input type: {type(x).__name__}')
+    x = x.int().squeeze()
+
+    if x.ndim > 1:
+        raise ValueError('Only one-dimension input is allowed')
+
+    if not torch.all(torch.logical_or(x == 0, x == 1)):
+        raise ValueError('Only binary input values are supported')
+
+    return x
+
 
 def binary_seq_md_scoring(prediction, target):
     """
@@ -56,14 +86,14 @@ def binary_seq_md_scoring(prediction, target):
     Parameters
     ----------
     prediction : np.ndarray or torch.Tensor or list
-        MD results predicted by the model
+        MD results predicted by the model.
     target : torch.Tensor or list
-        MD ground truth
+        MD ground truth.
 
     Returns
     -------
     md_scores : dict
-        a dictionary of MD scores
+        A dictionary of MD scores.
     """
     # # check input
     # valid_input_types = (np.ndarray, torch.Tensor, list)
@@ -71,26 +101,6 @@ def binary_seq_md_scoring(prediction, target):
     #     raise TypeError(f'Unsupported input type: {type(predict).__name__}')
     # if not isinstance(target, valid_input_types):
     #     raise TypeError(f'Unsupported input type: {type(target).__name__}')
-
-    # convert to torch.LongTensor
-    def convert_to_tensor(x):
-        if isinstance(x, np.ndarray):
-            x = torch.from_numpy(x)
-        elif isinstance(x, list):
-            x = torch.Tensor(x)
-        elif not isinstance(x, torch.Tensor):
-            raise TypeError(f'Unsupported input type: {type(x).__name__}')
-        x = x.int().squeeze()
-
-        if x.ndim > 1:
-            raise ValueError('Only one-dimension input is allowed')
-
-        if not torch.all(torch.logical_or(x == 0, x == 1)):
-            raise ValueError('Only binary input values are supported')
-
-        return x
-
-
     prediction = convert_to_tensor(prediction)
     target = convert_to_tensor(target)
 
@@ -116,6 +126,57 @@ def binary_seq_md_scoring(prediction, target):
     }
 
     return md_scores
+
+
+def boundary_md_scoring(pred_boundary_seq, gt_boundary_seq, pred_md_lbl_seq, gt_md_lbl_seq, tol):
+    """
+    Compute MD scores while considering segmentation correctness at the same time.
+
+    Parameters
+    ----------
+    pred_boundary_seq : torch.Tensor
+        (T,), predicted binary boundary indicator sequence
+    gt_boundary_seq : torch.Tensor
+        (T,), ground truth binary boundary indicator sequence
+    pred_md_lbl_seq : torch.Tensor
+        (L,), predicted binary MD result sequence
+    gt_md_lbl_seq : torch.Tensor
+        (L,), ground truth binary MD result sequence
+    tol : int
+        Tolerance value for boundary error.
+
+    Returns
+    -------
+    scores : dict
+        A dictionary of MD scores.
+    """
+    pred_boundary_seq = convert_to_tensor(pred_boundary_seq)
+    gt_boundary_seq = convert_to_tensor(gt_boundary_seq)
+    pred_md_lbl_seq = convert_to_tensor(pred_md_lbl_seq)
+    gt_md_lbl_seq = convert_to_tensor(gt_md_lbl_seq)
+
+    # convert boundary indicator sequences into boundary index sequences
+    assert len(pred_boundary_seq) == len(gt_boundary_seq)
+    pred_boundary_seq = torch.where(pred_boundary_seq == 1)[0]
+    gt_boundary_seq = torch.where(gt_boundary_seq == 1)[0]
+    assert len(pred_boundary_seq) == len(gt_boundary_seq) == len(pred_md_lbl_seq) == len(gt_md_lbl_seq)
+
+    boundary_diff_seq = torch.abs(pred_boundary_seq - gt_boundary_seq)
+    boundary_correctness_seq = torch.less_equal(boundary_diff_seq, tol)
+
+    md_correctness_seq = torch.eq(pred_md_lbl_seq, gt_md_lbl_seq)
+
+    correct_num = torch.sum(torch.logical_and(boundary_correctness_seq, md_correctness_seq))
+    total_num = len(pred_boundary_seq)
+
+    acc = correct_num / total_num * 100
+
+    return {
+        'B_MD_ACC': acc
+    }
+
+
+
 
 def per_scoring(pred_phn_seq, gt_phn_seq, gt_cnncl_seq):
     """
@@ -189,7 +250,10 @@ def batch_seq_md_scoring(
         pred_phn_seqs=None,
         gt_md_lbl_seqs=None,
         gt_phn_seqs=None,
-        gt_cnncl_seqs=None
+        gt_cnncl_seqs=None,
+        pred_boundary_seqs=None,
+        gt_boundary_seqs=None,
+        boundary_md_scoring_tol=5
 ):
     """
     Compute MD scores for a batch.
@@ -197,15 +261,22 @@ def batch_seq_md_scoring(
     Parameters
     ----------
     pred_md_lbl_seqs : list
-        list of predicted MD labels
+        List of predicted MD labels.
     pred_phn_seqs : list
-        list of predicted phonemes
+        List of predicted phonemes.
     gt_md_lbl_seqs : list
-        list of ground truth MD labels
+        List of ground truth MD labels.
     gt_phn_seqs : list
-        list of ground truth phonemes
+        List of ground truth phonemes.
     gt_cnncl_seqs : list
-        list of ground truth canonicals
+        List of ground truth canonicals.
+    pred_boundary_seqs : list
+        List of predicted boundary indicator sequences.
+    gt_boundary_seqs : list
+        List of ground truth boundary indicator sequences.
+    boundary_md_scoring_tol : int
+        Tolerance value for boundary error.
+
 
     Returns
     -------
@@ -248,11 +319,22 @@ def batch_seq_md_scoring(
         raise ValueError(f'Inconsistent batch size: {len(pred_md_lbl_seqs)} != {len(gt_md_lbl_seqs)}')
     md_scores = []
     for i in range(len(pred_md_lbl_seqs)):
-    # for pred_md_lbl_seq, gt_md_lbl_seq in zip(pred_md_lbl_seqs, gt_md_lbl_seqs):
+        # MD scores
         seq_md_scores = binary_seq_md_scoring(pred_md_lbl_seqs[i], gt_md_lbl_seqs[i])
+        
+        # MD scores while considering boundary correctness
+        if pred_boundary_seqs is not None:
+            seq_boundary_md_scores = boundary_md_scoring(
+                pred_boundary_seqs[0], gt_boundary_seqs[0], pred_md_lbl_seqs[0], gt_md_lbl_seqs[0], boundary_md_scoring_tol
+            )
+            seq_md_scores.update(seq_boundary_md_scores)
+    
+        # PER scores for correct and mispronounced phonemes
         if pred_phn_seqs is not None and gt_phn_seqs is not None and gt_cnncl_seqs is not None:
             seq_per_scores = per_scoring(pred_phn_seqs[i], gt_phn_seqs[i], gt_cnncl_seqs[i])
             seq_md_scores.update(seq_per_scores)
+        
+        # save scores
         md_scores.append(seq_md_scores)
 
     # save sequences for writing to the file

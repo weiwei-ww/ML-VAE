@@ -193,14 +193,17 @@ class SBModel(MDModel):
 
             # MD metrics
             gt_md_lbl_seqs = undo_padding(*batch['plvl_gt_md_lbl_seq'])
+            gt_boundary_seqs = undo_padding(*batch['gt_boundary_seq'])
             self.stats_loggers['plvl_md_stats'].append(
                 ids=batch['id'],
                 pred_md_lbl_seqs=pred_plvl_md_lvl_seqs,
                 gt_md_lbl_seqs=gt_md_lbl_seqs,
+                pred_boundary_seqs=decoded_boundary_seqs,
+                gt_boundary_seqs=gt_boundary_seqs
             )
 
             # boundary metrics
-            gt_boundary_seqs = undo_padding(*batch['gt_boundary_seq'])
+            # gt_boundary_seqs = undo_padding(*batch['gt_boundary_seq'])
             self.stats_loggers['boundary_stats'].append(
                 ids=batch['id'],
                 predictions=decoded_boundary_seqs,
