@@ -36,13 +36,13 @@ phoneme_recognizer: !new:modules.phoneme_recognizer.PhonemeRecognizer
     n_phonemes: !ref <n_phonemes>
 
 # FC for phoneme recognizer output
-phn_recog_in_fc_size: 32
+phn_recog_out_fc_size: 32
 
-phn_recog_in_fc: !new:modules.fc_block.FCBlock
+phn_recog_out_fc: !new:modules.fc_block.FCBlock
     fc_sizes:
         - !ref <n_phonemes> + 2
-        - !ref <phn_recog_in_fc_size>
-        - !ref <phn_recog_in_fc_size>
+        - !ref <phn_recog_out_fc_size>
+        - !ref <phn_recog_out_fc_size>
     end_activation: True
     
 # boundary detector
@@ -65,7 +65,7 @@ concat_fc_size: 128
 
 concat_fc: !new:modules.fc_block.FCBlock
     fc_sizes:
-        - !ref <feat_fc_size> + <phn_recog_in_fc_size>
+        - !ref <feat_fc_size> + <phn_recog_out_fc_size>
         - !ref <concat_fc_size>
         - !ref <concat_fc_size>
     end_activation: True
@@ -142,7 +142,7 @@ optimizer: !name:torch.optim.Adam
 modules:
     feat_fc: !ref <feat_fc>
     phoneme_recognizer: !ref <phoneme_recognizer>
-    phn_recog_in_fc: !ref <phn_recog_in_fc>
+    phn_recog_out_fc: !ref <phn_recog_out_fc>
     boundary_detector: !ref <boundary_detector>
     concat_fc: !ref <concat_fc>
     rnn: !ref <rnn>
@@ -157,7 +157,7 @@ checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
     recoverables:
         feat_fc: !ref <feat_fc>
         phoneme_recognizer: !ref <phoneme_recognizer>
-        phn_recog_in_fc: !ref <phn_recog_in_fc>
+        phn_recog_out_fc: !ref <phn_recog_out_fc>
         boundary_detector: !ref <boundary_detector>
         concat_fc: !ref <concat_fc>
         rnn: !ref <rnn>

@@ -99,10 +99,10 @@ class SBModel(MD_VAE):
             feat_fc_out = self.modules['feat_fc'](feats)
 
             # FC for phoneme recognizer output
-            phn_recog_in_fc_out = self.modules['phn_recog_in_fc'](phn_recog_out_dict['out'].detach())
+            phn_recog_out_fc_out = self.modules['phn_recog_out_fc'](phn_recog_out_dict['out'].detach())
 
             # concatenation
-            rnn_in = torch.cat([feat_fc_out, phn_recog_in_fc_out], dim=-1)
+            rnn_in = torch.cat([feat_fc_out, phn_recog_out_fc_out], dim=-1)
             rnn_in = self.modules['concat_fc'](rnn_in)
 
             # RNN
