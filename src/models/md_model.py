@@ -149,10 +149,10 @@ class MDModel(sb.Brain):
                 max_keys = []
                 min_keys = []
                 if hasattr(self.hparams, 'max_key'):
-                    if self.hparams.max_key.lower() != 'none':
+                    if self.hparams.max_key is not None:
                         max_keys.append(self.hparams.max_key)
                 if hasattr(self.hparams, 'min_key'):
-                    if self.hparams.min_key.lower() != 'none':
+                    if self.hparams.min_key is not None:
                         min_keys.append(self.hparams.min_key)
                 if len(max_keys) == 0 and len(min_keys) == 0:
                     raise ValueError('no max_key or min_key provided')
