@@ -102,3 +102,58 @@ def apply_lens_to_loss(loss, lens, reduction='mean'):
         loss = loss.reshape(B, -1).sum(dim=-1) / mask.reshape(B, -1).sum(dim=-1)
 
     return loss
+
+
+def resample_tensor(source, target, dim):
+    """
+    Resample the time dimension of source tensor to match target tensor.
+
+    Parameters
+    ----------
+    source : torch.Tensor
+        The tensor to be resampled.
+    target : torch.Tensor
+        The target tensor.
+    dim : int
+        The time dimension.
+
+    Returns
+    -------
+    resampled_source: torch.Tensor
+        (B, T, *)
+    """
+    source_shape = source.shape
+    source_ind = [slice(None) for _ in source_shape]
+
+    source_T = source.shape[dim]
+    target_T = target.shape[dim]
+
+    factor = round(target_T // source_T)
+    if not factor > 0:
+        raise ValueError(f'non-positive factor for input lengths: {source_T} and {target_T}')
+
+    # repeat the values in source tensor
+    resampled_source = torch.repeat_interleave(source, factor, dim=dim)
+
+    # check shape difference
+    shape_diff = resampled_source.shape[dim] - target_T
+    diff_tol = 3
+    if not -diff_tol <= shape_diff <= diff_tol:
+        raise ValueError(f'length difference between resampled tensor and target tensor is too large: {shape_diff}')
+
+    if shape_diff > 0:  # remove extra values from resampled tensor
+        source_ind[dim] = slice(target_T)
+        resampled_source = resampled_source[source_ind]
+    elif shape_diff < 0:  # pad resampled tensor with zeros
+        zeros = torch.zeros_like(resampled_source)
+        resampled_ind = [slice(None) for _ in resampled_source.shape]
+        resampled_ind[dim] = slice(-shape_diff)
+        zeros = zeros[resampled_ind]
+        resampled_source = torch.cat([resampled_source, zeros], dim=dim)
+
+    assert resampled_source.shape[dim] == target_T
+
+    return resampled_source
+
+
+
