@@ -125,8 +125,8 @@ def generate_json(json_path, ann_paths, phoneme_set_handler, fa_segmentation):
             'spk_id': spk_id,
             'txt_gt_phn_seq': phonemes,
             'txt_gt_cnncl_seq': canonicals,
-            'gt_segmentation': phoneme_segments,
-            'fa_segmentation': utt_fa_segmentation
+            'gt_seg_seq': phoneme_segments,
+            'fa_seg_seq': utt_fa_segmentation
             # 'words': words,
             # 'word_segments': word_segments
         }

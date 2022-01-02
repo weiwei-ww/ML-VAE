@@ -164,8 +164,8 @@ def create_json(
             'spk_id': spk_id,
             'txt_gt_phn_seq': phonemes,
             'txt_gt_cnncl_seq': phonemes,
-            'gt_segmentation': phoneme_segments,
-            'fa_segmentation': phoneme_segments,
+            'gt_seg_seq': phoneme_segments,
+            'fa_seg_seq': phoneme_segments,
             # 'words': words,
             # 'word_segments': word_segments
         }
