@@ -3,6 +3,7 @@ import numpy as np
 import torch
 
 from utils.metric_stats.base_metric_stats import BaseMetricStats
+from utils.data_utils import boundary_seq_to_seg_seq
 
 
 class MDMetricStats(BaseMetricStats):
@@ -128,7 +129,35 @@ def binary_seq_md_scoring(prediction, target):
     return md_scores
 
 
-def boundary_md_scoring(pred_boundary_seq, gt_boundary_seq, pred_md_lbl_seq, gt_md_lbl_seq, tol):
+def compute_boundary_iou(pred_seg_seq, gt_seg_seq):
+    """
+    Compute the IOU rate between two segmentation sequences.
+
+    Parameters
+    ----------
+    pred_seg_seq : torch.Tensor
+        Predicted segmentation sequence.
+    gt_seg_seq : torch.Tensor
+        Ground truth segmentation sequence.
+
+    Returns
+    -------
+    iou_seq : torch.Tensor
+        IOU sequence.
+    """
+    assert len(pred_seg_seq) == len(gt_seg_seq)
+
+    iou_seq = []
+    for (pred_start_index, pred_end_index), (gt_start_index, gt_end_index) in zip(pred_seg_seq, gt_seg_seq):
+        intersection = max(0, min(pred_end_index, gt_end_index) - max(pred_start_index, gt_start_index))
+        union = max(pred_end_index, gt_end_index) - min(pred_start_index, gt_start_index)
+        iou = intersection / union
+        iou_seq.append(iou)
+
+    return torch.tensor(iou_seq)
+
+
+def boundary_md_scoring(pred_boundary_seq, gt_boundary_seq, pred_md_lbl_seq, gt_md_lbl_seq, tol=5):
     """
     Compute MD scores while considering segmentation correctness at the same time.
 
@@ -157,25 +186,44 @@ def boundary_md_scoring(pred_boundary_seq, gt_boundary_seq, pred_md_lbl_seq, gt_
 
     # convert boundary indicator sequences into boundary index sequences
     assert len(pred_boundary_seq) == len(gt_boundary_seq)
-    pred_boundary_seq = torch.where(pred_boundary_seq == 1)[0]
-    gt_boundary_seq = torch.where(gt_boundary_seq == 1)[0]
-    assert len(pred_boundary_seq) == len(gt_boundary_seq) == len(pred_md_lbl_seq) == len(gt_md_lbl_seq)
+    pred_boundary_index_seq = torch.where(pred_boundary_seq == 1)[0]
+    gt_boundary_index_seq = torch.where(gt_boundary_seq == 1)[0]
+    assert len(pred_boundary_index_seq) == len(gt_boundary_index_seq) == len(pred_md_lbl_seq) == len(gt_md_lbl_seq)
 
-    boundary_diff_seq = torch.abs(pred_boundary_seq - gt_boundary_seq)
-    boundary_correctness_seq = torch.less_equal(boundary_diff_seq, tol)
-
+    # compute the MD correctness sequence
     md_correctness_seq = torch.eq(pred_md_lbl_seq, gt_md_lbl_seq)
 
-    correct_num = torch.sum(torch.logical_and(boundary_correctness_seq, md_correctness_seq))
-    total_num = len(pred_boundary_seq)
+    # compute the boundary correctness sequence given tolerance
+    boundary_diff_seq = torch.abs(pred_boundary_index_seq - gt_boundary_index_seq)
+    boundary_correctness_seq = torch.less_equal(boundary_diff_seq, tol)
 
+    # compute the IOU sequence
+    iou_seq = compute_boundary_iou(boundary_seq_to_seg_seq(pred_boundary_seq), boundary_seq_to_seg_seq(gt_boundary_seq))
+
+    # compute accuracy
+    correct_num = torch.sum(torch.logical_and(boundary_correctness_seq, md_correctness_seq))
+    total_num = len(pred_boundary_index_seq)
     acc = correct_num / total_num * 100
 
+    # compute soft F1
+    TP = torch.sum((1 - pred_md_lbl_seq) * (1 - gt_md_lbl_seq))
+    soft_TP = torch.sum((1 - pred_md_lbl_seq) * (1 - gt_md_lbl_seq) * iou_seq)
+    TN = torch.sum(pred_md_lbl_seq * gt_md_lbl_seq)
+    soft_TN = torch.sum(pred_md_lbl_seq * gt_md_lbl_seq * iou_seq)
+    FP = torch.sum((1 - pred_md_lbl_seq) * gt_md_lbl_seq)
+    FN = torch.sum(pred_md_lbl_seq * (1 - gt_md_lbl_seq))
+
+    eps = 1e-6
+    ACC = (soft_TP + soft_TN) / (TP + TN + FP + FN + eps) * 100
+    PRE = soft_TN / (TN + FN + eps) * 100
+    REC = soft_TN / (TN + FP + eps) * 100
+    F1 = 2 * PRE * REC / (PRE + REC + eps)
+
     return {
-        'B_MD_ACC': acc
+        'B_MD_ACC': acc,
+        'soft_ACC': ACC,
+        'soft_F1': F1
     }
-
-
 
 
 def per_scoring(pred_phn_seq, gt_phn_seq, gt_cnncl_seq):
@@ -325,7 +373,7 @@ def batch_seq_md_scoring(
         # MD scores while considering boundary correctness
         if pred_boundary_seqs is not None:
             seq_boundary_md_scores = boundary_md_scoring(
-                pred_boundary_seqs[0], gt_boundary_seqs[0], pred_md_lbl_seqs[0], gt_md_lbl_seqs[0], boundary_md_scoring_tol
+                pred_boundary_seqs[i], gt_boundary_seqs[i], pred_md_lbl_seqs[i], gt_md_lbl_seqs[i], boundary_md_scoring_tol
             )
             seq_md_scores.update(seq_boundary_md_scores)
     
