@@ -4,3 +4,4 @@ speechbrain
 librosa
 tensorboard
 tgt
+ctc-segmentation
