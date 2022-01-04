@@ -156,4 +156,26 @@ def resample_tensor(source, target, dim):
     return resampled_source
 
 
+def boundary_seq_to_seg_seq(boundary_seq):
+    """
+    Convert boundary sequence into segmentation sequence.
 
+    Parameters
+    ----------
+    boundary_seq : torch.Tensor
+        Boundary sequence.
+
+    Returns
+    -------
+    seg_seq : torch.Tensor
+        Segmentation sequence.
+
+    """
+    boundary_index_seq = torch.where(boundary_seq == 1)[0]
+    # boundary_index_seq = torch.cat([boundary_index_seq, torch.tensor(len(boundary_seq))])
+    seg_seq = []
+    for i in range(len(boundary_index_seq) - 1):
+        seg_seq.append([boundary_index_seq[i], boundary_index_seq[i + 1]])
+    seg_seq.append([boundary_index_seq[-1], len(boundary_index_seq)])
+
+    return torch.tensor(seg_seq)
