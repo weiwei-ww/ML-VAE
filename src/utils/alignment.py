@@ -8,7 +8,7 @@ import speechbrain.dataio.wer
 # from speechbrain.utils.edit_distance import count_ops
 
 
-def align_sequences(a, b, c=None, empty_value=-1):
+def align_sequences(a, b, c=None, empty_value=-1, ignore_insertion=True):
     """
     Align two or three sequences.
 
@@ -19,7 +19,9 @@ def align_sequences(a, b, c=None, empty_value=-1):
     c : torch.Tensor of list
         sequences to be aligned
     empty_value : any
-        value to use for insertion and deletion
+        Value to use for insertions and deletions.
+    ignore_insertion : bool
+        If True, insertions will be ignored.
 
     Returns
     -------
@@ -50,10 +52,12 @@ def align_sequences(a, b, c=None, empty_value=-1):
     # get aligned sequences
     ali_a, ali_b, ali_c = [], [], []
     for _, a_index, b_index in alignment:
+        if a_index is None and ignore_insertion:
+            continue
         ali_a.append(a[a_index] if a_index is not None else empty_value)
         ali_b.append(b[b_index] if b_index is not None else empty_value)
         if c is not None:
-            ali_c.append(c[b_index] if b_index is not None else empty_value)
+            ali_c.append(c[a_index] if a_index is not None else empty_value)
 
     if c is not None:
         assert len(ali_a) == len(ali_b) == len(ali_c)
@@ -107,8 +111,6 @@ def batch_align_sequences(batch_a, batch_b, batch_c=None):
         return ali_batch_a, ali_batch_b, ali_batch_c
     else:
         return ali_batch_a, ali_batch_b
-
-
 
 
 if __name__ == '__main__':
