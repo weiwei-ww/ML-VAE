@@ -26,16 +26,25 @@ for i in range(num_samples):
     sample_lines = lines[i * len(valid_prefixes): (i + 1) * len(valid_prefixes)]
     utt_id = sample_lines[0][0]
     parsed_result = []
-    for gt_phn, pred_phn, start_time, end_time in zip(*sample_lines[1:]):
+    j = 0
+    for gt_phn, pred_phn in zip(*sample_lines[1:3]):
         # print(gt_phn, pred_phn, start_time, end_time)
-        # ignore insertions
-        if '*' in gt_phn:
+        if '*' in gt_phn:  # ignore insertions
             continue
+        elif '*' in pred_phn:  # deletion
+            if len(parsed_result) > 0:
+                start_time, end_time, _ = parsed_result[-1]
+            else:
+                start_time = end_time = 0
+        else:
+            start_time, end_time = sample_lines[-2][j], sample_lines[-1][j]
+            j += 1
 
         start_time = float(start_time)
         end_time = float(end_time)
         pred_phn = pred_phn.lower()
         parsed_result.append([start_time, end_time, pred_phn])
+
     parsed_results[utt_id] = parsed_result
 
 # write to json file
