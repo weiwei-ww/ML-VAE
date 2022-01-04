@@ -1,0 +1,43 @@
+# Seed needs to be set at top of yaml, before objects with parameters are made
+seed: 123456
+__set_seed: !apply:torch.manual_seed [!ref <seed>]
+
+dataset: L2_ARCTIC
+
+# Data files
+n_phonemes: 39
+prepare:
+    dataset_dir: !ref datasets/<dataset>/original_dataset  # e.g. /path/to/dataset
+    train_json_path: !ref datasets/<dataset>/annotation/train.json
+    valid_json_path: !ref datasets/<dataset>/annotation/valid.json
+    test_json_path: !ref datasets/<dataset>/annotation/test.json
+    phoneme_set_handler: !new:utils.phonemes.PhonemeSetHandler
+        n_phonemes: !ref <n_phonemes>
+
+# Feature parameters
+sample_rate: 16000
+hop_length: 20
+n_fft: 400
+n_mels: 40
+
+blank_index: 0
+
+compute_features: !new:speechbrain.lobes.features.Fbank
+    deltas: True
+    sample_rate: !ref <sample_rate>
+    hop_length: !ref <hop_length>
+    n_fft: !ref <n_fft>
+    n_mels: !ref <n_mels>
+
+# training parameters
+batch_size: 8
+
+# dataset and dataloader options
+sorting: descending # choose between ascending, descending and random
+train_dataloader_opts:
+    batch_size: !ref <batch_size>
+valid_dataloader_opts:
+    batch_size: !ref <batch_size>
+test_dataloader_opts:
+    batch_size: !ref <batch_size>
+
