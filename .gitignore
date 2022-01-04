@@ -13,3 +13,4 @@ __pycache__/
 /src/datasets/*/original_dataset
 /src/datasets/*/annotation
 /src/datasets/*/computed_dataset
+/src/datasets/*/external_data
