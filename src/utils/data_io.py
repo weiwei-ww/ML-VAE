@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 output_keys = [
     'id',
     'wav', 'aug_wav',  # wave form
+    'duration',  # duration
     'feat', 'aug_feat',  # feature
     'gt_phn_seq', 'gt_cnncl_seq',  # encoded phonemes
     'flvl_gt_phn_seq', 'flvl_gt_cnncl_seq',  # frame level phonemes
