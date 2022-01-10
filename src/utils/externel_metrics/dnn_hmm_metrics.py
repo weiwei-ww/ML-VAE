@@ -44,7 +44,8 @@ def compute_fa_metrics(dataset):
 def compute_asr_metrics(dataset):
     metrics = {}
 
-    for data_sample in dataset:
+    for i, data_sample in enumerate(dataset):
+
         utt_id = data_sample['id']
         sample_metrics = {}
 

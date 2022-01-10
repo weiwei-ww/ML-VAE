@@ -1,8 +1,8 @@
 import json
 from pathlib import Path
 
-file_path = Path('ctm_39phn.filt.prf')
-output_path = Path('datasets/L2_ARCTIC/external_data/dnn_hmm_test.json')
+file_path = Path('datasets/L2_ARCTIC/external_data/dnn_hmm.filt.prf')
+output_path = file_path.parent / 'dnn_hmm_test.json'
 
 if not file_path.exists():
     raise FileNotFoundError(f'file not found: {file_path.absolute()}')
