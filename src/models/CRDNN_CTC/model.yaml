@@ -77,12 +77,8 @@ md_metrics_file: !ref <output_dir>/md_metrics.txt
 metric_keys:
     - phn_per.error_rate
     - cnncl_per.error_rate
-    - plvl_md.ACC
-    - plvl_md.PRE
-    - plvl_md.REC
-    - plvl_md.F1
-    - plvl_md.correct_per
-    - plvl_md.misp_per
+    - plvl_md
+    - boundary
 
 max_key: plvl_md.F1
 

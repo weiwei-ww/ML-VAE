@@ -1,4 +1,5 @@
 import logging
+import warnings
 from pathlib import Path
 import numpy as np
 import torch
@@ -12,6 +13,7 @@ from speechbrain.nnet.losses import ctc_loss
 from utils.alignment import batch_align_sequences
 from utils.data_utils import undo_padding_tensor, resample_tensor
 from utils.metric_stats.md_metric_stats import MDMetricStats
+from utils.metric_stats.boundary_metric_stats import BoundaryMetricStats
 from models.md_model import MDModel
 
 logger = logging.getLogger(__name__)
@@ -24,6 +26,7 @@ class SBModel(MDModel):
         self.stats_loggers['phn_per_stats'] = ErrorRateStats()
         self.stats_loggers['cnncl_per_stats'] = ErrorRateStats()
         self.stats_loggers['plvl_md_stats'] = MDMetricStats()
+        self.stats_loggers['boundary_stats'] = BoundaryMetricStats()
 
     def compute_forward(self, batch, stage):
         batch = batch.to(self.device)
@@ -97,12 +100,12 @@ class SBModel(MDModel):
 
         # align sequences
         ali_gt_phn_seqs, ali_pred_phn_seqs, ali_gt_cnncl_seqs = \
-            batch_align_sequences(gt_phn_seqs, pred_phns, gt_cnncl_seqs)
+            batch_align_sequences(gt_phn_seqs, pred_phns, gt_cnncl_seqs, ignore_insertion=True)
 
         # compute CTC segmentation results
         ctc_segmentation_boundary_seqs = self.compute_ctc_segmentation(batch, pout)
-        gt_boundary_seqs = undo_padding_tensor(*batch['gt_boundary_seq'])
-        gt_boundary_seqs = [seq.cpu() for seq in gt_boundary_seqs]
+        unpadded_gt_boundary_seqs = undo_padding_tensor(*batch['gt_boundary_seq'])
+        unpadded_gt_boundary_seqs = [seq.cpu() for seq in unpadded_gt_boundary_seqs]
 
         self.stats_loggers['plvl_md_stats'].append(
             batch['id'],
@@ -110,7 +113,13 @@ class SBModel(MDModel):
             gt_phn_seqs=ali_gt_phn_seqs,
             gt_cnncl_seqs=ali_gt_cnncl_seqs,
             pred_boundary_seqs=ctc_segmentation_boundary_seqs,
-            gt_boundary_seqs=gt_boundary_seqs
+            gt_boundary_seqs=unpadded_gt_boundary_seqs
+        )
+
+        self.stats_loggers['boundary_stats'].append(
+            batch['id'],
+            predictions=ctc_segmentation_boundary_seqs,
+            targets=unpadded_gt_boundary_seqs
         )
 
         return loss
@@ -155,8 +164,12 @@ class SBModel(MDModel):
                 else:
                     start_index = int(np.ceil(start / config.index_duration))
                 end_index = int(np.ceil(end / config.index_duration))
-                assert start_index < end_index
-                assert boundary_seq[start_index] == 0
+                # assert start_index < end_index
+                # if start_index >= end_index:
+                #     warnings.warn(f'start_index = {start_index}, end_index = {end_index}')
+                while boundary_seq[start_index] == 1:
+                    start_index += 1
+                    warnings.warn('move one')
                 boundary_seq[start_index] = 1
             boundary_seqs.append(boundary_seq)
 
