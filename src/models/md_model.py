@@ -118,18 +118,21 @@ class MDModel(sb.Brain):
             epoch = self.hparams.epoch_counter.current
 
         # get metrics
-        # log_metrics['loss'] = round(stage_loss, 3)
         log_metrics = {'loss': round(stage_loss, 3)}
         for metric_key in self.hparams.metric_keys:  # e.g. metric_key = 'PER' or 'md.F1'
             metric_key_list = metric_key.split('.')
             stats_logger_key = f'{metric_key_list[0].lower()}_stats'
             stats = self.stats_loggers.get(stats_logger_key)
             if stats is not None:
-                stats_key = None if len(metric_key_list) == 1 else metric_key_list[1]
+                if len(metric_key_list) == 1:  # summarize all metrics
+                    summarized_stats = stats.summarize(None)
+                    for stats_key in summarized_stats:
+                        complete_metric_key = f'{metric_key}.{stats_key}'
+                        log_metrics[complete_metric_key] = round(summarized_stats[stats_key], 2)
+                else:  # summarize a particular metric
+                    summarized_stats = stats.summarize(metric_key_list[1])
+                    log_metrics[metric_key] = round(float(summarized_stats), 2)
 
-                summarized_stats = stats.summarize(stats_key)
-                # if summarized_stats is not None:
-                log_metrics[metric_key] = round(float(summarized_stats), 2)
 
         if stage == sb.Stage.TRAIN or stage == sb.Stage.VALID:
             # log stats
