@@ -67,7 +67,7 @@ def align_sequences(a, b, c=None, empty_value=-1, ignore_insertion=True):
         return ali_a, ali_b
 
 
-def batch_align_sequences(batch_a, batch_b, batch_c=None):
+def batch_align_sequences(batch_a, batch_b, batch_c=None, ignore_insertion=True):
     """
     Preform alignment on batches.
 
@@ -76,7 +76,9 @@ def batch_align_sequences(batch_a, batch_b, batch_c=None):
     batch_a : list
     batch_b : list
     batch_c : list
-        list of lists, each element of batch_* is sequence (in a list format)
+        List of lists, each element of batch_* is sequence (in a list format).
+    ignore_insertion : bool
+        If Ture, all insertions will be ignored.
 
     Returns
     -------
@@ -102,7 +104,7 @@ def batch_align_sequences(batch_a, batch_b, batch_c=None):
         a = batch_a[i]
         b = batch_b[i]
         c = batch_c[i] if batch_c is not None else None
-        ali_a, ali_b, ali_c = align_sequences(a, b, c)
+        ali_a, ali_b, ali_c = align_sequences(a, b, c, ignore_insertion=ignore_insertion)
         ali_batch_a.append(ali_a)
         ali_batch_b.append(ali_b)
         ali_batch_c.append(ali_c)
