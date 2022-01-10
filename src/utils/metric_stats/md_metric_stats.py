@@ -151,7 +151,8 @@ def compute_boundary_iou(pred_seg_seq, gt_seg_seq):
     for (pred_start_index, pred_end_index), (gt_start_index, gt_end_index) in zip(pred_seg_seq, gt_seg_seq):
         intersection = max(0, min(pred_end_index, gt_end_index) - max(pred_start_index, gt_start_index))
         union = max(pred_end_index, gt_end_index) - min(pred_start_index, gt_start_index)
-        iou = intersection / union
+        iou = intersection / (union + 1e-5)
+        assert torch.isfinite(iou)
         iou_seq.append(iou)
 
     return torch.tensor(iou_seq)
@@ -190,20 +191,16 @@ def boundary_md_scoring(pred_boundary_seq, gt_boundary_seq, pred_md_lbl_seq, gt_
     gt_boundary_index_seq = torch.where(gt_boundary_seq == 1)[0]
     assert len(pred_boundary_index_seq) == len(gt_boundary_index_seq) == len(pred_md_lbl_seq) == len(gt_md_lbl_seq)
 
-    # compute the MD correctness sequence
-    md_correctness_seq = torch.eq(pred_md_lbl_seq, gt_md_lbl_seq)
-
-    # compute the boundary correctness sequence given tolerance
-    boundary_diff_seq = torch.abs(pred_boundary_index_seq - gt_boundary_index_seq)
-    boundary_correctness_seq = torch.less_equal(boundary_diff_seq, tol)
-
     # compute the IOU sequence
     iou_seq = compute_boundary_iou(boundary_seq_to_seg_seq(pred_boundary_seq), boundary_seq_to_seg_seq(gt_boundary_seq))
 
-    # compute accuracy
-    correct_num = torch.sum(torch.logical_and(boundary_correctness_seq, md_correctness_seq))
-    total_num = len(pred_boundary_index_seq)
-    acc = correct_num / total_num * 100
+    # compute IOU
+    ave_iou = torch.mean(iou_seq) * 100
+    correct_iou_seq = iou_seq[torch.where(gt_md_lbl_seq == 0)[0]]
+    correct_iou = torch.mean(correct_iou_seq) * 100 if len(correct_iou_seq) > 0 else torch.tensor(0.0)
+    misp_iou_seq = iou_seq[torch.where(gt_md_lbl_seq == 1)[0]]
+    misp_iou = torch.mean(misp_iou_seq) * 100 if len(misp_iou_seq) > 0 else torch.tensor(0.0)
+    assert torch.isfinite(correct_iou) and torch.isfinite(misp_iou)
 
     # compute soft F1
     TP = torch.sum((1 - pred_md_lbl_seq) * (1 - gt_md_lbl_seq))
@@ -220,9 +217,13 @@ def boundary_md_scoring(pred_boundary_seq, gt_boundary_seq, pred_md_lbl_seq, gt_
     F1 = 2 * PRE * REC / (PRE + REC + eps)
 
     return {
-        'B_MD_ACC': acc,
         'soft_ACC': ACC,
-        'soft_F1': F1
+        'soft_PRE': PRE,
+        'soft_REC': REC,
+        'soft_F1': F1,
+        'ave_iou': ave_iou,
+        'correct_iou': correct_iou,
+        'misp_iou': misp_iou
     }
 
 
