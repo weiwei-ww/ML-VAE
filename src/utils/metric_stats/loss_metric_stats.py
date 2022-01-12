@@ -19,9 +19,9 @@ class LossMetricStats:
         if field is not None:
             raise ValueError('field must be None')
 
-        mean_loss = torch.mean(torch.tensor(self.loss_list))
+        mean_loss = torch.mean(torch.tensor(self.loss_list)).item()
 
-        return mean_loss
+        return {'loss': mean_loss}
 
     def write_stats(self, f):
         mean_loss = self.summarize()
