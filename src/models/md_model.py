@@ -126,9 +126,9 @@ class MDModel(sb.Brain):
             if stats is not None:
                 if len(metric_key_list) == 1:  # summarize all metrics
                     summarized_stats = stats.summarize(None)
-                    for stats_key in summarized_stats:
+                    for stats_key, value in summarized_stats.items():
                         complete_metric_key = f'{metric_key}.{stats_key}'
-                        log_metrics[complete_metric_key] = round(summarized_stats[stats_key], 2)
+                        log_metrics[complete_metric_key] = round(value, 2)
                 else:  # summarize a particular metric
                     summarized_stats = stats.summarize(metric_key_list[1])
                     log_metrics[metric_key] = round(float(summarized_stats), 2)
