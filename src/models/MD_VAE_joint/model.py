@@ -26,7 +26,7 @@ class SBModel(MDModel):
         self.stats_loggers = {}
 
         # initialize metric stats for losses
-        if self.to_run_evaluation(stage):
+        if self.to_run_evaluation(stage, epoch):
             # initialize metric stats for losses
             for loss_key in self.hparams.metric_keys:
                 if loss_key.endswith('_loss'):
@@ -57,8 +57,6 @@ class SBModel(MDModel):
         predictions['phn_recog_out'] = phn_recog_out_dict['out']
 
         losses = phn_recog_out_dict['losses']
-        for key in losses:
-            losses[key] = losses[key].detach()
         predictions['losses'].update(losses)
 
         # boundary detector
@@ -67,8 +65,6 @@ class SBModel(MDModel):
         predictions['boundary_v'] = b_detector_out['boundary_v']
 
         losses = b_detector_out['losses']
-        for key in losses:
-            losses[key] = losses[key].detach()
         predictions['losses'].update(losses)
 
         # VAE
@@ -124,7 +120,8 @@ class SBModel(MDModel):
         loss = self.compute_and_save_losses(losses)
 
         # MD metrics
-        if self.to_run_evaluation(stage):
+        epoch = self.hparams.epoch_counter.current
+        if self.to_run_evaluation(stage, epoch):
             # decoding
             plvl_cnnl_seqs, plvl_cnnl_seq_lens = batch['gt_cnncl_seq']
             weight = getattr(self.hparams, 'dec_weight', 1.0)
@@ -160,8 +157,15 @@ class SBModel(MDModel):
         return loss
 
     def on_stage_end(self, stage, stage_loss, epoch=None):
-        if self.to_run_evaluation(stage):
+        if self.to_run_evaluation(stage, epoch):
             super(SBModel, self).on_stage_end(stage, stage_loss, epoch)
 
-    def to_run_evaluation(self, stage):
-        return stage == sb.Stage.VALID or stage == sb.Stage.TEST
+    def to_run_evaluation(self, stage, epoch):
+        if stage == sb.Stage.TRAIN:
+            return False
+        elif stage == sb.Stage.TEST:
+            return True
+        else:
+            if epoch is None:
+                raise ValueError('epoch cannot be None')
+            return epoch % 10 == 0
