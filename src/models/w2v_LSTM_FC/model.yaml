@@ -15,8 +15,8 @@ wav2vec2: !new:speechbrain.lobes.models.huggingface_wav2vec.HuggingFaceWav2Vec2
 classifier: !new:modules.fc_block.FCBlock
     fc_sizes:
         - 1024
-        - 512
-        - 128
+#        - 512
+#        - 128
         - 1
 
 optimizers:
@@ -54,12 +54,6 @@ checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
         lr_annealing_adam: !ref <lr_annealing_adam>
         lr_annealing_wav2vec: !ref <lr_annealing_wav2vec>
         counter: !ref <epoch_counter>
-
-
-compute_cost: !name:speechbrain.nnet.losses.ctc_loss
-ctc_stats: !name:speechbrain.utils.metric_stats.MetricStats
-per_stats: !name:speechbrain.utils.metric_stats.ErrorRateStats
-md_stats: !name:utils.md_metric_stats.MDMetricStats
 
 metric_keys:
     - flvl_md.ACC

@@ -70,8 +70,9 @@ class SBModel(MDModel):
 
         self.stats_loggers['flvl_md_stats'].append(
             batch['id'],
-            batch_pred_md_lbl_seqs=flvl_pred_md_lbl_seqs,
-            batch_gt_md_lbl_seqs=flvl_gt_md_lbl_seqs
+            pred_md_lbl_seqs=flvl_pred_md_lbl_seqs,
+            gt_md_lbl_seqs=flvl_gt_md_lbl_seqs
         )
+        print(round(loss.item() * 100, 3))
 
         return loss
