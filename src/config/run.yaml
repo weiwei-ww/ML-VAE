@@ -1,6 +1,7 @@
 # Seed needs to be set at top of yaml, before objects with parameters are made
 seed: 123456
 __set_seed: !apply:torch.manual_seed [!ref <seed>]
+__set_deterministic: !apply:torch.use_deterministic_algorithms [True]
 
 dataset: !PLACEHOLDER
 model_class: !PLACEHOLDER

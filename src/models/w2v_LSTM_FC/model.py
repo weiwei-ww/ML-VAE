@@ -73,6 +73,6 @@ class SBModel(MDModel):
             pred_md_lbl_seqs=flvl_pred_md_lbl_seqs,
             gt_md_lbl_seqs=flvl_gt_md_lbl_seqs
         )
-        print(round(loss.item() * 100, 3))
+        # print(round(loss.item() * 100, 3))
 
         return loss
