@@ -13,10 +13,10 @@ if __name__ == '__main__':
 
     # fit the model
     # with torch.autograd.detect_anomaly():
-    model.fit(
-        hparams['model']['epoch_counter'],
-        train_dataset,
-        valid_dataset,
-        train_loader_kwargs=hparams['train_dataloader_opts'],
-        valid_loader_kwargs=hparams['valid_dataloader_opts'],
-    )
+    # model.fit(
+    #     hparams['model']['epoch_counter'],
+    #     train_dataset,
+    #     valid_dataset,
+    #     train_loader_kwargs=hparams['train_dataloader_opts'],
+    #     valid_loader_kwargs=hparams['valid_dataloader_opts'],
+    # )

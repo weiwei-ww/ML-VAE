@@ -4,6 +4,7 @@ import pickle
 from pathlib import Path
 import copy
 import librosa
+import subprocess
 
 import torch
 import speechbrain as sb
@@ -112,6 +113,110 @@ def generate_boundary_seq(id, feat, duration, segmentation):
     return boundary_seq, phn_end_seq
 
 
+def compute_fbank_kaldi(wav_scp_path, feature_params):
+    """
+    Compute the fbank feature with Kaldi.
+
+    Parameters
+    ----------
+    wav_scp_path : Path
+        Path to the wav.scp file.
+
+    feature_params : dict
+        Parameters for feature extraction.
+
+    Returns
+    -------
+    None
+    """
+    def convert_utt2spk_to_spk2utt(utt2spk_path):
+        # load utt2spk
+        with open(utt2spk_path) as f:
+            lines = f.readlines()
+        lines = [line.split() for line in lines]
+
+        # analyze data
+        data = {}
+        for utt_id, spk_id in lines:
+            if spk_id not in data:
+                data[spk_id] = []
+            data[spk_id].append(utt_id)
+
+        # create spk2utt
+        lines = []
+        for spk_id, utt_ids in data.items():
+            line = ' '.join([spk_id] + utt_ids) + '\n'
+            lines.append(line)
+
+        return lines
+
+    def run_cmd(cmd):
+        cmd = ' '.join(cmd)
+        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+        process.wait()
+        if process.returncode != 0:
+            raise ValueError(f'non-zero return code: {process.returncode}')
+
+    set_name = wav_scp_path.stem.split('.')[0]
+    assert set_name in ['train', 'valid', 'test']
+    kaldi_data_dir = wav_scp_path.parent
+
+    # parameters
+    sr = feature_params['sample_rate']
+    hop_length = feature_params['hop_length']
+    n_fft = feature_params['n_fft']
+    n_mels = feature_params['n_mels']
+
+    # compute fbank with Kaldi
+    cmd = ['compute-fbank-feats --window-type=hamming --htk-compat=true --dither=0.0 --energy-floor=1.0 --snip-edges=false']
+
+    # feature extraction parameters
+    cmd.append(f'--sample-frequency={sr}')
+    cmd.append(f'--frame-shift={hop_length}')
+    cmd.append(f'--frame-length={n_fft / sr * 1000}')
+    cmd.append(f'--num-mel-bins={n_mels}')
+
+    # IO ark/scp files
+    cmd.append(f'scp:{wav_scp_path.absolute()}')
+    raw_feats_scp_path = kaldi_data_dir / f'{set_name}.raw_feats.scp'
+    raw_feats_ark_path = raw_feats_scp_path.with_suffix('.ark')
+    cmd.append(f'ark,scp:{raw_feats_ark_path.absolute()},{raw_feats_scp_path.absolute()}')
+
+    run_cmd(cmd)
+
+    # add deltas
+    cmd = ['add-deltas']
+    cmd.append(f'scp:{raw_feats_scp_path.absolute()}')
+    delta_feats_scp_path = kaldi_data_dir / f'{set_name}.delta_feats.scp'
+    delta_feats_ark_path = delta_feats_scp_path.with_suffix('.ark')
+    cmd.append(f'ark,scp:{delta_feats_ark_path.absolute()},{delta_feats_scp_path.absolute()}')
+
+    run_cmd(cmd)
+
+    # compute CMVN
+    utt2spk_path = kaldi_data_dir / f'{set_name}.utt2spk'
+    spk2utt_lines = convert_utt2spk_to_spk2utt(utt2spk_path)
+    spk2utt_content = ''.join(spk2utt_lines)
+    cmd = [f'echo "{spk2utt_content}" | compute-cmvn-stats --spk2utt=ark:-']
+    cmd.append(f'scp:{delta_feats_scp_path.absolute()}')
+    cmvn_scp_path = kaldi_data_dir / f'{set_name}.cmvn.scp'
+    cmvn_ark_path = cmvn_scp_path.with_suffix('.ark')
+    cmd.append(f'ark,scp:{cmvn_ark_path.absolute()},{cmvn_scp_path.absolute()}')
+
+    run_cmd(cmd)
+
+    # apply CMVN
+    cmd = ['apply-cmvn --norm-vars=true']
+    cmd.append(f'--utt2spk=ark:{utt2spk_path.absolute()}')
+    cmd.append(f'scp:{cmvn_scp_path.absolute()}')
+    cmd.append(f'scp:{delta_feats_scp_path.absolute()}')
+    feats_scp_path = kaldi_data_dir / f'{set_name}.feats.scp'
+    feats_ark_path = feats_scp_path.with_suffix('.ark')
+    cmd.append(f'ark,scp:{feats_ark_path.absolute()},{feats_scp_path.absolute()}')
+
+    run_cmd(cmd)
+
+
 def get_label_encoder(hparams):
     """
     Get label encoder.
@@ -135,7 +240,8 @@ def get_label_encoder(hparams):
 
 def prepare_datasets(hparams):
     logger.info('Preparing datasets.')
-    computed_dataset_dir = Path(hparams['prepare']['dataset_dir']).parent / 'computed_dataset'
+    dataset_dir = Path(hparams['prepare']['dataset_dir']).parent
+    computed_dataset_dir = dataset_dir / 'computed_dataset'
 
     # check if pre-computed datasets exist
     set_names = ['train', 'valid', 'test']
@@ -149,7 +255,16 @@ def prepare_datasets(hparams):
     computed_datasets = []
     if to_prepare:
         logger.info('One or more computed datasets do not exist, start preparing them.')
+
+        # compute Kaldi features
+        for set_name in set_names:
+            wav_scp_path = dataset_dir / 'kaldi_data' / f'{set_name}.wav.scp'
+            compute_fbank_kaldi(wav_scp_path, hparams['kaldi_feature_params'])
+
+        # prepare datasets
         datasets = data_io_prep(hparams)
+
+        # save datasets
         for set_name, dataset in zip(set_names, datasets):  # prepare dataset for train, valid, and test sets
             pkl_path = computed_dataset_dir / f'{set_name}.pkl'
             pkl_path.parent.mkdir(exist_ok=True)
@@ -184,7 +299,7 @@ def prepare_datasets(hparams):
 
 
 def data_io_prep(hparams):
-    # datasets definition
+    # datasets initialization
     def dataset_prep(hparams, set_name):
         dataset = sb.dataio.dataset.DynamicItemDataset.from_json(
             json_path=hparams['prepare'][f'{set_name}_json_path'])

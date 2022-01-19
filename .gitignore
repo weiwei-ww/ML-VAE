@@ -14,3 +14,6 @@ __pycache__/
 /src/datasets/*/annotation
 /src/datasets/*/computed_dataset
 /src/datasets/*/external_data
+/src/datasets/*/kaldi_data
+
+/kaldi

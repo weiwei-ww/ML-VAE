@@ -5,3 +5,4 @@ librosa
 tensorboard
 tgt
 ctc-segmentation
+kaldiio

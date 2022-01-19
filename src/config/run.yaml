@@ -19,9 +19,15 @@ prepare:
 
 # Feature parameters
 sample_rate: 16000
-hop_length: 20
+hop_length: 20  # ms
 n_fft: 400
 n_mels: 40
+
+kaldi_feature_params:
+        sample_rate: !ref <sample_rate>
+        hop_length: !ref <hop_length>
+        n_fft: !ref <n_fft>
+        n_mels: !ref <n_mels>
 
 blank_index: 0
 
