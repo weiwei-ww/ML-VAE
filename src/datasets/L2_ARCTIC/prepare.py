@@ -38,6 +38,7 @@ TXHC
 YKWK
 ZHAA'''
 
+
 def prepare(dataset_dir, train_json_path, valid_json_path, test_json_path, phoneme_set_handler):
     # initialization
     dataset_dir = Path(dataset_dir)

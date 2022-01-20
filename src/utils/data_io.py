@@ -5,6 +5,7 @@ from pathlib import Path
 import copy
 import librosa
 import subprocess
+from kaldiio import ReadHelper
 
 import torch
 import speechbrain as sb
@@ -20,14 +21,16 @@ output_keys = [
     'wav', 'aug_wav',  # wave form
     'duration',  # duration
     'feat', 'aug_feat',  # feature
+    'kaldi_feat', 'aug_kaldi_feat',  # Kaldi feature
     'gt_phn_seq', 'gt_cnncl_seq',  # encoded phonemes
     'flvl_gt_phn_seq', 'flvl_gt_cnncl_seq',  # frame level phonemes
     'aug_flvl_gt_cnncl_seq', 'aug_flvl_gt_cnncl_seq',  # frame level phoneme with augmentation
     'plvl_gt_md_lbl_seq', 'flvl_gt_md_lbl_seq', 'aug_flvl_gt_md_lbl_seq',  # phoneme and frame level MD ground truth
-    'gt_seg_seq',  'gt_boundary_seq', 'gt_phn_end_seq',  # ground truth segmentation
+    'gt_seg_seq', 'gt_boundary_seq', 'gt_phn_end_seq',  # ground truth segmentation
     'fa_seg_seq', 'fa_boundary_seq', 'fa_phn_end_seq',  # forced alignment segmentation
     'prior'  # prior distribution for phonemes
 ]
+
 
 def generate_flvl_annotation(label_encoder, feat, duration, segmentation, phoneme_list):
     """
@@ -129,6 +132,7 @@ def compute_fbank_kaldi(wav_scp_path, feature_params):
     -------
     None
     """
+
     def convert_utt2spk_to_spk2utt(utt2spk_path):
         # load utt2spk
         with open(utt2spk_path) as f:
@@ -274,7 +278,7 @@ def prepare_datasets(hparams):
                 data_sample_dict = {}  # data sample content as a dictionary
                 for key in output_keys:
                     if key != 'id':
-                        data_sample_dict[key] = copy.deepcopy(data_sample[key]) # use deep copy to prevent errors
+                        data_sample_dict[key] = copy.deepcopy(data_sample[key])  # use deep copy to prevent errors
                 computed_dataset_dict[data_id] = data_sample_dict
             # save the computed dataset
             with open(pkl_path, 'wb') as f:
@@ -311,6 +315,7 @@ def data_io_prep(hparams):
 
         return dataset
 
+    set_names = ['train', 'valid', 'test']
     train_dataset = dataset_prep(hparams, 'train')
     valid_dataset = dataset_prep(hparams, 'valid')
     test_dataset = dataset_prep(hparams, 'test')
@@ -318,10 +323,26 @@ def data_io_prep(hparams):
 
     label_encoder = get_label_encoder(hparams)
 
+    # Kaldi feature pipelines
+    kaldi_feats = {}
+    for set_name in set_names:
+        feats_scp_path = Path(hparams['prepare']['dataset_dir']).parent / 'kaldi_data' / f'{set_name}.feats.scp'
+        with ReadHelper(f'scp:{feats_scp_path.absolute()}') as reader:
+            for utt_id, feat in reader:
+                kaldi_feats[utt_id] = torch.from_numpy(feat.copy())
+
+    @speechbrain.utils.data_pipeline.takes('id')
+    @speechbrain.utils.data_pipeline.provides('kaldi_feat', 'aug_kaldi_feat')
+    def kaldi_feat_pipeline(id):
+        yield kaldi_feats[id]
+        yield kaldi_feats[id]
+
+    sb.dataio.dataset.add_dynamic_item(datasets, kaldi_feat_pipeline)
+
     # audio pipelines
-    @speechbrain.utils.data_pipeline.takes('wav_path')
+    @speechbrain.utils.data_pipeline.takes('wav_path', 'kaldi_feat')
     @speechbrain.utils.data_pipeline.provides('wav', 'feat', 'aug_wav', 'aug_feat')
-    def audio_pipeline(wav_path):
+    def audio_pipeline(wav_path, kaldi_feat):
         # use librosa instead of sb to get the correct sample rate
         sr = hparams['sample_rate']
         wav, _ = librosa.load(wav_path, sr=sr)
@@ -331,7 +352,9 @@ def data_io_prep(hparams):
 
         batched_wav = wav.unsqueeze(dim=0)  # add a batch dimension
         feat = hparams['compute_features'](batched_wav).squeeze(dim=0)
-        # print(feat.shape)
+        if feat.shape[0] != kaldi_feat.shape[0]:
+            assert feat.shape[0] - kaldi_feat.shape[0] == 1
+            feat = feat[:kaldi_feat.shape[0], :]
         yield feat  # feature
 
         aug_wav = wav
@@ -356,6 +379,7 @@ def data_io_prep(hparams):
         yield flvl_gt_phn_seq  # frame level phonemes
         aug_flvl_gt_phn_seq = generate_flvl_annotation(label_encoder, aug_feat, duration, segmentation, gt_phn_seq)
         yield aug_flvl_gt_phn_seq  # frame level phonemes with augmentation
+
     sb.dataio.dataset.add_dynamic_item(datasets, flvl_phoneme_pipeline)
 
     # frame level canonicals
@@ -368,6 +392,7 @@ def data_io_prep(hparams):
         yield flvl_gt_cnncl_seq  # frame level canonicals
         aug_flvl_gt_cnncl_seq = generate_flvl_annotation(label_encoder, aug_feat, duration, segmentation, gt_cnncl_seq)
         yield aug_flvl_gt_cnncl_seq  # frame level canonicals with augmentation
+
     sb.dataio.dataset.add_dynamic_item(datasets, flvl_canonical_pipeline)
 
     # MD ground truth pipelines
@@ -376,16 +401,19 @@ def data_io_prep(hparams):
     @speechbrain.utils.data_pipeline.provides('plvl_gt_md_lbl_seq')
     def plvl_gt_md_lbl_seq_pipeline(gt_phn_seq, gt_cnncl_seq):
         return torch.ne(gt_phn_seq, gt_cnncl_seq).long()
+
     sb.dataio.dataset.add_dynamic_item(datasets, plvl_gt_md_lbl_seq_pipeline)
 
     # frame level ground truth
-    @speechbrain.utils.data_pipeline.takes('flvl_gt_phn_seq', 'flvl_gt_cnncl_seq', 'aug_flvl_gt_phn_seq', 'aug_flvl_gt_cnncl_seq')
+    @speechbrain.utils.data_pipeline.takes('flvl_gt_phn_seq', 'flvl_gt_cnncl_seq', 'aug_flvl_gt_phn_seq',
+                                           'aug_flvl_gt_cnncl_seq')
     @speechbrain.utils.data_pipeline.provides('flvl_gt_md_lbl_seq', 'aug_flvl_gt_md_lbl_seq')
     def flvl_gt_md_lbl_seq_pipeline(flvl_gt_phn_seq, flvl_gt_cnncl_seq, aug_flvl_gt_phn_seq, aug_flvl_gt_cnncl_seq):
         flvl_gt_md_lbl_seq = torch.ne(flvl_gt_phn_seq, flvl_gt_cnncl_seq).long()
         yield flvl_gt_md_lbl_seq
         aug_flvl_gt_md_lbl_seq = torch.ne(aug_flvl_gt_phn_seq, aug_flvl_gt_cnncl_seq).long()
         yield aug_flvl_gt_md_lbl_seq
+
     sb.dataio.dataset.add_dynamic_item(datasets, flvl_gt_md_lbl_seq_pipeline)
 
     # ground truth boundaries
@@ -395,6 +423,7 @@ def data_io_prep(hparams):
         boundary_seq, phn_end_seq = generate_boundary_seq(id, feat, duration, gt_segmentation)
         yield boundary_seq
         yield phn_end_seq
+
     sb.dataio.dataset.add_dynamic_item(datasets, gt_boundary_seq_pipeline)
 
     # forced alignment boundaries
@@ -404,6 +433,7 @@ def data_io_prep(hparams):
         boundary_seq, phn_end_seq = generate_boundary_seq(id, feat, duration, fa_segmentation)
         yield boundary_seq
         yield phn_end_seq
+
     sb.dataio.dataset.add_dynamic_item(datasets, fa_boundary_seq_pipeline)
 
     # set output keys
