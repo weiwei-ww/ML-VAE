@@ -179,3 +179,30 @@ def boundary_seq_to_seg_seq(boundary_seq):
     seg_seq.append([boundary_index_seq[-1], len(boundary_index_seq)])
 
     return torch.tensor(seg_seq)
+
+
+def compute_categorical_ll(dist, sampled):
+    """
+    Compute the log-likelihood for a categorical distribution.
+
+    Parameters
+    ----------
+    dist : torch.distributions.Categorical
+        The categorical distribution.
+
+    sampled : torch.Tensor
+        Sampled data.
+
+    Returns
+    -------
+    ll : torch.Tensor
+        Log-likelihood.
+    """
+    logits = dist.logits
+    if logits.shape != sampled.shape:
+        raise ValueError(f'inconsistent shapes: {logits.shape} != {sampled.shape}')
+
+    ll = torch.bmm(logits.reshape(logits.shape[0] * logits.shape[1], 1, -1),
+                   sampled.reshape(logits.shape[0] * logits.shape[1], -1, 1)).reshape(logits.shape[0], logits.shape[1])
+
+    return ll

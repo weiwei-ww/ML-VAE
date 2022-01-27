@@ -3,6 +3,8 @@ n_epochs: 50
 epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter
     limit: !ref <n_epochs>
 
+use_kaldi_feat: True
+
 normalizer: !new:speechbrain.processing.features.InputNormalization
     norm_type: global
 
@@ -190,11 +192,7 @@ metric_keys:
     - rif_loss
     - entropy_loss
     - baseline_loss
-    - plvl_md.ACC
-    - plvl_md.PRE
-    - plvl_md.REC
-    - plvl_md.F1
-    - boundary.f1
-    - boundary.r_value
+    - plvl_md
+    - boundary
 
 max_key: plvl_md.F1

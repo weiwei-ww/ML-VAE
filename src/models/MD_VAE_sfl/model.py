@@ -15,7 +15,7 @@ from models.MD_VAE.model import Target
 from utils.metric_stats.loss_metric_stats import LossMetricStats
 from utils.metric_stats.md_metric_stats import MDMetricStats
 from utils.metric_stats.boundary_metric_stats import BoundaryMetricStats
-from utils.data_utils import apply_lens_to_loss, undo_padding_tensor
+from utils.data_utils import apply_lens_to_loss, undo_padding_tensor, compute_categorical_ll
 from utils.decode_utils import decode_plvl_md_lbl_seqs_full as decode_plvl_md_lbl_seqs
 
 logger = logging.getLogger(__name__)
@@ -56,14 +56,14 @@ class SBModel(MD_VAE):
             raise ValueError('target is not defined')
 
         batch = batch.to(self.device)
-        feats, feat_lens = batch['feat']
+        if self.hparams.use_kaldi_feat is True:
+            feats, feat_lens = batch['kaldi_feat']
+        else:
+            feats, feat_lens = batch['feat']
+            feats = self.hparams.normalizer(feats, feat_lens, epoch=self.hparams.epoch_counter.current)
 
         # initialize predictions
         predictions = {'losses': {}}
-
-        # feature normalization
-        current_epoch = self.hparams.epoch_counter.current
-        feats = self.hparams.normalizer(feats, feat_lens, epoch=current_epoch)
 
         # phoneme recognizer
         if self.target in [Target.PHN_RECOG, Target.VAE, Target.TEST]:
@@ -85,7 +85,6 @@ class SBModel(MD_VAE):
             fa_boundary_seqs = batch['fa_boundary_seq'][0]
             b_detector_out = self.modules['boundary_detector'](feats, feat_lens, fa_boundary_seqs)
             predictions['boundary_v'] = b_detector_out['boundary_v']
-            # predictions['losses'].update(b_detector_out['losses'])
 
             losses = b_detector_out['losses']
             if self.target != Target.B_DETECTOR:
@@ -130,7 +129,8 @@ class SBModel(MD_VAE):
             decoded_flvl_md_lvl_seqs = \
                 [torch.tensor(seq).float().to(self.device) for seq in decoded_flvl_md_lvl_seqs]
             decoded_flvl_md_lvl_seqs = pad_sequence(decoded_flvl_md_lvl_seqs, batch_first=True)
-            pi_nll_loss = -dist.log_prob(decoded_flvl_md_lvl_seqs)
+            # pi_nll_loss = -dist.log_prob(decoded_flvl_md_lvl_seqs)
+            pi_nll_loss = -compute_categorical_ll(dist, torch.stack([1 - decoded_flvl_md_lvl_seqs, decoded_flvl_md_lvl_seqs], dim=-1))
             predictions['losses']['pi_nll_loss'] = pi_nll_loss
 
             pi_mcmc_num = self.hparams.pi_mcmc_num if self.modules.training else 1
@@ -165,14 +165,14 @@ class SBModel(MD_VAE):
                     sfl_losses[key] += decoder_out_dict['losses'][key]
 
                 # compute SFL losses
-                nll = -dist.log_prob(sampled_pi)
+                # nll = -dist.log_prob(sampled_pi)
+                nll = -compute_categorical_ll(dist, torch.stack([1 - sampled_pi, sampled_pi], dim=-1))
                 baseline = self.modules['baseline_fc'](rnn_out).squeeze(dim=-1)  # shape = (B, T)
                 vae_kld_loss = torch.mean(encoder_out_dict['losses']['vae_kld_loss'], dim=-1)
                 recon_loss = torch.mean(decoder_out_dict['losses']['recon_loss'], dim=-1)
                 reward = -(self.hparams.recon_weight * recon_loss.detach()
                            + self.hparams.vae_kld_weight * vae_kld_loss.detach()
                            + self.hparams.pi_nll_weight * pi_nll_loss.detach())  # shape = (B, T)
-                # reward = -recon_loss.detach()  # shape = (B, T)
 
                 sfl_losses['rif_loss'] += (reward - baseline.detach()) * nll
                 sfl_losses['entropy_loss'] += -dist.entropy()
