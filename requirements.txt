@@ -1,5 +1,3 @@
-pytorch
-torchaudio
 speechbrain
 librosa
 tensorboard
