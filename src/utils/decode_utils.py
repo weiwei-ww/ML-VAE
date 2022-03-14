@@ -381,7 +381,7 @@ def decode_plvl_md_lbl_seqs_full(
         weight=1.0
 ):
     '''
-    Decode the boundaries and the beta sequence simultaneously. The parallel version.
+    Decode the boundaries and the pi sequence simultaneously. The parallel version.
 
     Parameters
     ----------
