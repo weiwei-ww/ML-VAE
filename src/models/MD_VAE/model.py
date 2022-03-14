@@ -1,5 +1,8 @@
+import json
 import logging
+import warnings
 from enum import Enum, auto
+from pathlib import Path
 
 from torch.distributions import Categorical
 import torch.nn
@@ -127,7 +130,7 @@ class SBModel(MDModel):
             # compute Pi NLL loss
             plvl_cnnl_seqs, plvl_cnnl_seq_lens = batch['gt_cnncl_seq']
             weight = getattr(self.hparams, 'dec_weight', 1.0)
-            _, decoded_flvl_md_lvl_seqs, _ = decode_plvl_md_lbl_seqs(
+            decoded_boundary_seqs, decoded_flvl_md_lvl_seqs, decoded_plvl_md_lbl_seqs = decode_plvl_md_lbl_seqs(
                 predictions,
                 utt_ids=batch['id'],
                 feat_lens=feat_lens,
@@ -136,9 +139,13 @@ class SBModel(MDModel):
                 prior=batch['prior'][0][0],
                 weight=weight
             )
+            predictions['decoded_boundary_seq'] = [torch.tensor(seq) for seq in decoded_boundary_seqs]
+            predictions['decoded_plvl_md_lbl_seq'] = [torch.tensor(seq) for seq in decoded_plvl_md_lbl_seqs]
+
             decoded_flvl_md_lvl_seqs = \
                 [torch.tensor(seq).float().to(sampled_pi.device) for seq in decoded_flvl_md_lvl_seqs]
             decoded_flvl_md_lvl_seqs = pad_sequence(decoded_flvl_md_lvl_seqs, batch_first=True)
+
             pi_nll_loss = -dist.log_prob(decoded_flvl_md_lvl_seqs)
             predictions['losses']['pi_nll_loss'] = pi_nll_loss
 
@@ -210,6 +217,9 @@ class SBModel(MDModel):
                 targets=gt_boundary_seqs
             )
 
+        if stage == sb.Stage.TEST:
+            self.save_md_result(batch, predictions)
+
         return loss
 
     def on_stage_end(self, stage, stage_loss, epoch=None):
@@ -218,3 +228,50 @@ class SBModel(MDModel):
 
     def to_run_evaluation(self, stage):
         return (stage == sb.Stage.VALID and self.target == Target.VAE) or (stage == sb.Stage.TEST)
+
+    def save_md_result(self, batch, predictions):
+        utt_ids = batch['id']
+        md_results = {}
+        for i, utt_id in enumerate(utt_ids):
+            boundary_seqs = predictions['decoded_boundary_seq'][i]
+            md_lbl_seqs = predictions['decoded_plvl_md_lbl_seq'][i]
+
+            boundary_idx_seqs = torch.cat([torch.where(boundary_seqs == 1)[0], torch.tensor([len(boundary_seqs)])])
+            boundary_pct_seqs = boundary_idx_seqs / len(boundary_seqs)
+            # boundary_pct_seqs = torch.cat([boundary_pct_seqs, torch.tensor([1])])
+            misp_idx_seqs = torch.where(md_lbl_seqs == 1)[0]
+
+            utt_md_results = []
+            for misp_idx in misp_idx_seqs:
+                start_pct = boundary_pct_seqs[misp_idx]
+                start_index = start_pct * len(boundary_seqs)
+                end_pct = boundary_pct_seqs[misp_idx + 1]
+                end_index = end_pct * len(boundary_seqs)
+                if start_index == end_index:
+                    warnings.warn(f'same start and end index: {int(start_index.item())}')
+                    assert False
+                utt_md_results.append([int(misp_idx.item()),
+                                         # int(start_index.item()),
+                                         start_pct.item(),
+                                         # int(end_index.item()),
+                                         end_pct.item()])
+
+            md_results[utt_id] = utt_md_results
+
+        save_dir = Path('datasets') / self.hparams.dataset_name / 'saved_md_results'
+        save_dir.mkdir(exist_ok=True)
+        save_path = save_dir / f'{self.hparams.model_name}.json'
+
+        if save_path.exists():
+            with open(save_path) as f:
+                existing_md_data = json.load(f)
+            existing_md_data.update(md_results)
+            md_results = existing_md_data
+
+        with open(save_path, 'w') as f:
+            json.dump(md_results, f)
+        print(len(md_results))
+
+        # if len(saved_md_results) > 0:
+        #     for md_ret in saved_md_results:
+        #         print(md_ret)
