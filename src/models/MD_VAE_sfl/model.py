@@ -56,7 +56,7 @@ class SBModel(MD_VAE):
             raise ValueError('target is not defined')
 
         batch = batch.to(self.device)
-        if self.hparams.use_kaldi_feat is True:
+        if getattr(self.hparams, 'use_kaldi_feat', False) is True:
             feats, feat_lens = batch['kaldi_feat']
         else:
             feats, feat_lens = batch['feat']
@@ -117,7 +117,7 @@ class SBModel(MD_VAE):
             # compute Pi NLL loss
             plvl_cnnl_seqs, plvl_cnnl_seq_lens = batch['gt_cnncl_seq']
             weight = getattr(self.hparams, 'dec_weight', 1.0)
-            _, decoded_flvl_md_lvl_seqs, _ = decode_plvl_md_lbl_seqs(
+            decoded_boundary_seqs, decoded_flvl_md_lvl_seqs, decoded_plvl_md_lbl_seqs = decode_plvl_md_lbl_seqs(
                 predictions,
                 utt_ids=batch['id'],
                 feat_lens=feat_lens,
@@ -126,6 +126,9 @@ class SBModel(MD_VAE):
                 prior=batch['prior'][0][0],
                 weight=weight
             )
+            predictions['decoded_boundary_seq'] = [torch.tensor(seq) for seq in decoded_boundary_seqs]
+            predictions['decoded_plvl_md_lbl_seq'] = [torch.tensor(seq) for seq in decoded_plvl_md_lbl_seqs]
+
             decoded_flvl_md_lvl_seqs = \
                 [torch.tensor(seq).float().to(self.device) for seq in decoded_flvl_md_lvl_seqs]
             decoded_flvl_md_lvl_seqs = pad_sequence(decoded_flvl_md_lvl_seqs, batch_first=True)
