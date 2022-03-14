@@ -7,6 +7,9 @@ dataset: !PLACEHOLDER
 model_class: !PLACEHOLDER
 model_name: !PLACEHOLDER
 
+apply_saved_md_results: True
+saved_md_results_model_name: null
+
 # Data files
 n_phonemes: 39
 prepare:
@@ -53,6 +56,8 @@ test_dataloader_opts:
 # model
 output_dir: !ref results/<model_name>
 model: !PLACEHOLDER
+    dataset_name: !ref <dataset>
+    model_name: !ref <model_name>
     output_dir: !ref <output_dir>
     input_size: !ref <n_mels> * 3
     n_phonemes: !ref <n_phonemes>
