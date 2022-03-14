@@ -1,11 +1,12 @@
+import json
 import logging
 from tqdm import tqdm
 import pickle
 from pathlib import Path
 import copy
 import librosa
-import subprocess
 from kaldiio import ReadHelper
+from joblib import Parallel, delayed
 
 import torch
 import speechbrain as sb
@@ -13,6 +14,10 @@ import speechbrain.dataio.dataio
 import speechbrain.dataio.dataset
 import speechbrain.dataio.encoder
 import speechbrain.utils.data_pipeline
+
+from utils.data_io_utils import \
+    generate_flvl_annotation, generate_boundary_seq, compute_fbank_kaldi, get_label_encoder, \
+    apply_flvl_saved_md_results, apply_plvl_saved_md_results, apply_boundary_saved_md_results
 
 logger = logging.getLogger(__name__)
 
@@ -28,218 +33,8 @@ output_keys = [
     'plvl_gt_md_lbl_seq', 'flvl_gt_md_lbl_seq', 'aug_flvl_gt_md_lbl_seq',  # phoneme and frame level MD ground truth
     'gt_seg_seq', 'gt_boundary_seq', 'gt_phn_end_seq',  # ground truth segmentation
     'fa_seg_seq', 'fa_boundary_seq', 'fa_phn_end_seq',  # forced alignment segmentation
-    'prior'  # prior distribution for phonemes
+    'prior',  # prior distribution for phonemes
 ]
-
-
-def generate_flvl_annotation(label_encoder, feat, duration, segmentation, phoneme_list):
-    """
-    Generate frame level annotation.
-
-    Parameters
-    ----------
-    label_encoder : sb.dataio.encoder.CTCTextEncoder
-        label encoder
-    feat : torch.Tensor
-        (T, C), features
-    duration : float
-        total duration (in second)
-    segmentation : list
-        len = L, a list of tuples (start_second, end_second)
-    phoneme_list : torch.LongTensor
-        (L), list of phoneme level encoded phonemes
-
-    Returns
-    -------
-    fl_phoneme_list : torch.Tensor
-        T, list of frame level encoded phonemes
-    """
-    T = feat.shape[0]
-    L = phoneme_list.shape[0]
-    assert len(segmentation) == L
-
-    # initialize the output with sil
-    fl_phoneme_list = torch.zeros(T).type_as(phoneme_list)
-    encoded_sil = label_encoder.encode_label('sil')
-    torch.fill_(fl_phoneme_list, encoded_sil)
-
-    # fill the output
-    for phoneme, (start_time, end_time) in zip(phoneme_list, segmentation):
-        # print(phoneme, start_time, end_time)
-        start_index = int(start_time / duration * T)
-        end_index = int(end_time / duration * T)
-        fl_phoneme_list[start_index: end_index] = phoneme
-
-    return fl_phoneme_list
-
-
-def generate_boundary_seq(id, feat, duration, segmentation):
-    """
-    Generate boundary sequence.
-
-    Parameters
-    ----------
-    feat : torch.Tensor
-        (T, C), features
-    duration : float
-        total duration (in second)
-    segmentation : list
-        len = L, a list of tuples (start_second, end_second)
-
-    Returns
-    -------
-    boundary_seq : torch.Tensor
-        (T), binary tensor indicating if a frame is a start frame (=1) or not (=0)
-    phn_end_seq : torch.Tensor
-        (T), binary tensor indicating if a frame is an end frame (=1) or not (=0)
-
-    """
-    T = feat.shape[0]  # total number of frames
-
-    boundary_seq = torch.zeros(T)
-    boundary_seq[0] = 1
-    for start_time, _ in segmentation[1:]:
-        start_index = int(start_time / duration * T)
-        # assert boundary_seq[start_index] == 0
-        count = 0
-        while boundary_seq[start_index] == 1:
-            start_index += 1
-            count += 1
-            # print(f'move {count}')
-        boundary_seq[start_index] = 1
-
-    phn_end_seq = torch.zeros(len(segmentation))
-    for i, (_, end_time) in enumerate(segmentation):
-        # end_index = int(end_time / duration * T)
-        end_index = int(end_time * 16000)
-        phn_end_seq[i] = end_index
-    return boundary_seq, phn_end_seq
-
-
-def compute_fbank_kaldi(wav_scp_path, feature_params):
-    """
-    Compute the fbank feature with Kaldi.
-
-    Parameters
-    ----------
-    wav_scp_path : Path
-        Path to the wav.scp file.
-
-    feature_params : dict
-        Parameters for feature extraction.
-
-    Returns
-    -------
-    None
-    """
-
-    def convert_utt2spk_to_spk2utt(utt2spk_path):
-        # load utt2spk
-        with open(utt2spk_path) as f:
-            lines = f.readlines()
-        lines = [line.split() for line in lines]
-
-        # analyze data
-        data = {}
-        for utt_id, spk_id in lines:
-            if spk_id not in data:
-                data[spk_id] = []
-            data[spk_id].append(utt_id)
-
-        # create spk2utt
-        lines = []
-        for spk_id, utt_ids in data.items():
-            line = ' '.join([spk_id] + utt_ids) + '\n'
-            lines.append(line)
-
-        return lines
-
-    def run_cmd(cmd):
-        cmd = ' '.join(cmd)
-        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-        process.wait()
-        if process.returncode != 0:
-            raise ValueError(f'non-zero return code: {process.returncode}')
-
-    set_name = wav_scp_path.stem.split('.')[0]
-    assert set_name in ['train', 'valid', 'test']
-    kaldi_data_dir = wav_scp_path.parent
-
-    # parameters
-    sr = feature_params['sample_rate']
-    hop_length = feature_params['hop_length']
-    n_fft = feature_params['n_fft']
-    n_mels = feature_params['n_mels']
-
-    # compute fbank with Kaldi
-    cmd = ['compute-fbank-feats --window-type=hamming --htk-compat=true --dither=0.0 --energy-floor=1.0 --snip-edges=false']
-
-    # feature extraction parameters
-    cmd.append(f'--sample-frequency={sr}')
-    cmd.append(f'--frame-shift={hop_length}')
-    cmd.append(f'--frame-length={n_fft / sr * 1000}')
-    cmd.append(f'--num-mel-bins={n_mels}')
-
-    # IO ark/scp files
-    cmd.append(f'scp:{wav_scp_path.absolute()}')
-    raw_feats_scp_path = kaldi_data_dir / f'{set_name}.raw_feats.scp'
-    raw_feats_ark_path = raw_feats_scp_path.with_suffix('.ark')
-    cmd.append(f'ark,scp:{raw_feats_ark_path.absolute()},{raw_feats_scp_path.absolute()}')
-
-    run_cmd(cmd)
-
-    # add deltas
-    cmd = ['add-deltas']
-    cmd.append(f'scp:{raw_feats_scp_path.absolute()}')
-    delta_feats_scp_path = kaldi_data_dir / f'{set_name}.delta_feats.scp'
-    delta_feats_ark_path = delta_feats_scp_path.with_suffix('.ark')
-    cmd.append(f'ark,scp:{delta_feats_ark_path.absolute()},{delta_feats_scp_path.absolute()}')
-
-    run_cmd(cmd)
-
-    # compute CMVN
-    utt2spk_path = kaldi_data_dir / f'{set_name}.utt2spk'
-    spk2utt_lines = convert_utt2spk_to_spk2utt(utt2spk_path)
-    spk2utt_content = ''.join(spk2utt_lines)
-    cmd = [f'echo "{spk2utt_content}" | compute-cmvn-stats --spk2utt=ark:-']
-    cmd.append(f'scp:{delta_feats_scp_path.absolute()}')
-    cmvn_scp_path = kaldi_data_dir / f'{set_name}.cmvn.scp'
-    cmvn_ark_path = cmvn_scp_path.with_suffix('.ark')
-    cmd.append(f'ark,scp:{cmvn_ark_path.absolute()},{cmvn_scp_path.absolute()}')
-
-    run_cmd(cmd)
-
-    # apply CMVN
-    cmd = ['apply-cmvn --norm-vars=true']
-    cmd.append(f'--utt2spk=ark:{utt2spk_path.absolute()}')
-    cmd.append(f'scp:{cmvn_scp_path.absolute()}')
-    cmd.append(f'scp:{delta_feats_scp_path.absolute()}')
-    feats_scp_path = kaldi_data_dir / f'{set_name}.feats.scp'
-    feats_ark_path = feats_scp_path.with_suffix('.ark')
-    cmd.append(f'ark,scp:{feats_ark_path.absolute()},{feats_scp_path.absolute()}')
-
-    run_cmd(cmd)
-
-
-def get_label_encoder(hparams):
-    """
-    Get label encoder.
-
-    Parameters
-    ----------
-    hparams : dict
-        Loaded hparams.
-
-    Returns
-    -------
-    label_encoder : sb.dataio.encoder.CTCTextEncoder
-        The label encoder for the dataset.
-    """
-    label_encoder = sb.dataio.encoder.CTCTextEncoder()
-    phoneme_set = hparams['prepare']['phoneme_set_handler'].get_phoneme_set()
-    label_encoder.update_from_iterable(phoneme_set, sequence_input=False)
-    label_encoder.insert_blank(index=hparams['blank_index'])
-    return label_encoder
 
 
 def prepare_datasets(hparams):
@@ -272,14 +67,31 @@ def prepare_datasets(hparams):
         for set_name, dataset in zip(set_names, datasets):  # prepare dataset for train, valid, and test sets
             pkl_path = computed_dataset_dir / f'{set_name}.pkl'
             pkl_path.parent.mkdir(exist_ok=True)
+
             computed_dataset_dict = {}
-            for data_sample in tqdm(dataset):  # for each data sample
-                data_id = data_sample['id']  # get ID
+            pbar = tqdm(dataset)
+            pbar.set_description('computing dataset')
+            for data_sample in pbar:  # for each data sample
+                utt_id = data_sample['id']  # get ID
                 data_sample_dict = {}  # data sample content as a dictionary
                 for key in output_keys:
                     if key != 'id':
                         data_sample_dict[key] = copy.deepcopy(data_sample[key])  # use deep copy to prevent errors
-                computed_dataset_dict[data_id] = data_sample_dict
+                computed_dataset_dict[utt_id] = data_sample_dict
+
+            # def compute(idx):
+            #     data_sample = dataset[idx]
+            #     utt_id = data_sample['id']  # get ID
+            #     data_sample_dict = {}  # data sample content as a dictionary
+            #     for key in output_keys:
+            #         if key != 'id':
+            #             data_sample_dict[key] = copy.deepcopy(data_sample[key])  # use deep copy to prevent errors
+            #     return utt_id, data_sample_dict
+            # compute_datasets_result_list = Parallel(n_jobs=16)(delayed(compute)(idx) for idx in tqdm(range(len(dataset))))
+            # computed_dataset_dict = {}
+            # for utt_id, data_sample_dict in compute_datasets_result_list:
+            #     computed_dataset_dict[utt_id] = data_sample_dict
+
             # save the computed dataset
             with open(pkl_path, 'wb') as f:
                 pickle.dump(computed_dataset_dict, f)
@@ -290,6 +102,37 @@ def prepare_datasets(hparams):
         pkl_path = computed_dataset_dir / f'{set_name}.pkl'
         with open(pkl_path, 'rb') as f:
             computed_dataset_dict = pickle.load(f)
+
+        # apply saved MD results as a data cleaning step
+        if hparams.get('apply_saved_md_results', False):
+            json_dir = Path('datasets') / hparams['dataset'] / 'saved_md_results'
+            json_path = json_dir / (hparams['saved_md_results_model_name'] + '.json')
+            with open(json_path) as f:
+                saved_md_results = json.load(f)
+
+            logger.info('Apply saved MD results.')
+            pbar = tqdm(computed_dataset_dict)
+            pbar.set_description('applying saved MD results')
+            for utt_id in pbar:
+                flvl_len = len(computed_dataset_dict[utt_id]['feat'])
+                plvl_len = len(computed_dataset_dict[utt_id]['gt_phn_seq'])
+                for key, data in computed_dataset_dict[utt_id].items():
+                    if 'flvl_' in key or 'feat' in key:
+                        assert len(data) == flvl_len
+                        updated_data = apply_flvl_saved_md_results(data, saved_md_results[utt_id])
+                    elif 'boundary_' in key:
+                        assert len(data) == flvl_len
+                        updated_data = apply_boundary_saved_md_results(data, saved_md_results[utt_id])
+                    elif '_seq' in key:
+                        assert len(data) == plvl_len
+                        updated_data = apply_plvl_saved_md_results(data, saved_md_results[utt_id])
+                    else:
+                        updated_data = data
+                    computed_dataset_dict[utt_id][key] = updated_data
+
+                # test
+
+
         computed_dataset = sb.dataio.dataset.DynamicItemDataset(computed_dataset_dict, output_keys=output_keys)
         computed_datasets.append(computed_dataset)
 
@@ -298,6 +141,7 @@ def prepare_datasets(hparams):
     # save label_encoder
     label_encoder_path = computed_dataset_dir / 'label_encoder.txt'
     label_encoder.save(label_encoder_path)
+
 
     return computed_datasets, label_encoder
 
@@ -364,6 +208,9 @@ def data_io_prep(hparams):
 
         batched_aug_wav = aug_wav.unsqueeze(dim=0)
         aug_feat = hparams['compute_features'](batched_aug_wav).squeeze(dim=0)
+        if aug_feat.shape[0] != kaldi_feat.shape[0]:
+            assert aug_feat.shape[0] - kaldi_feat.shape[0] == 1
+            aug_feat = aug_feat[:kaldi_feat.shape[0], :]
         yield aug_feat  # feature with augmentation
 
     sb.dataio.dataset.add_dynamic_item(datasets, audio_pipeline)
@@ -440,8 +287,24 @@ def data_io_prep(hparams):
     sb.dataio.dataset.set_output_keys(datasets, ['gt_cnncl_seq'])
 
     # compute prior distribution
+    logger.info('Compute prior for each phoneme.')
     prior = torch.zeros(len(label_encoder))
-    for train_sample in tqdm(train_dataset):
+    def get_cnncl_phn_seq(train_sample_index):
+        train_sample = train_dataset[train_sample_index]
+        cnncl_phn_seq = train_sample['gt_cnncl_seq']
+        return cnncl_phn_seq
+    # pbar = tqdm(range(len(train_dataset)))
+    # pbar.set_description('computing prior')
+    # cnncl_phn_seqs = Parallel(n_jobs=1)(delayed(get_cnncl_phn_seq)(train_sample_index) for train_sample_index in pbar)
+    # for cnncl_phn_seq in cnncl_phn_seqs:
+    #     for cnncl_phn in cnncl_phn_seq:
+    #         prior[cnncl_phn] += 1
+    # prior /= torch.sum(prior)
+
+    prior = torch.zeros(len(label_encoder))
+    pbar = tqdm(train_dataset)
+    pbar.set_description('computing prior')
+    for train_sample in pbar:
         cnncl_phn_seq = train_sample['gt_cnncl_seq']
         for cnncl_phn in cnncl_phn_seq:
             prior[cnncl_phn] += 1
