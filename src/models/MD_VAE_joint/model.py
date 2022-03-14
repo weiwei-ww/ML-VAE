@@ -10,6 +10,7 @@ from speechbrain.nnet.losses import compute_masked_loss
 from speechbrain.utils.data_utils import undo_padding
 
 from models.md_model import MDModel
+from models.MD_VAE.model import SBModel as MD_VAE
 from utils.metric_stats.loss_metric_stats import LossMetricStats
 from utils.metric_stats.md_metric_stats import MDMetricStats
 from utils.metric_stats.boundary_metric_stats import BoundaryMetricStats
@@ -19,9 +20,10 @@ from utils.decode_utils import decode_plvl_md_lbl_seqs_full as decode_plvl_md_lb
 logger = logging.getLogger(__name__)
 
 
-class SBModel(MDModel):
+class SBModel(MD_VAE):
     def on_stage_start(self, stage, epoch=None):
-        super(SBModel, self).on_stage_start(stage, epoch)
+        # super(SBModel, self).on_stage_start(stage, epoch)
+        MDModel.on_stage_start(self, stage, epoch)
         # initialize metric stats
         self.stats_loggers = {}
 
@@ -134,6 +136,8 @@ class SBModel(MDModel):
                 prior=batch['prior'][0][0],
                 weight=weight
             )
+            predictions['decoded_boundary_seq'] = [torch.tensor(seq) for seq in decoded_boundary_seqs]
+            predictions['decoded_plvl_md_lbl_seq'] = [torch.tensor(seq) for seq in pred_plvl_md_lvl_seqs]
 
             # MD metrics
             gt_md_lbl_seqs = undo_padding(*batch['plvl_gt_md_lbl_seq'])
@@ -154,11 +158,14 @@ class SBModel(MDModel):
                 targets=gt_boundary_seqs
             )
 
+        self.save_md_result(batch, predictions)
+
         return loss
 
     def on_stage_end(self, stage, stage_loss, epoch=None):
         if self.to_run_evaluation(stage, epoch):
-            super(SBModel, self).on_stage_end(stage, stage_loss, epoch)
+            # super(SBModel, self).on_stage_end(stage, stage_loss, epoch)
+            MDModel.on_stage_end(self, stage, stage_loss, epoch)
 
     def to_run_evaluation(self, stage, epoch):
         if stage == sb.Stage.TRAIN:
