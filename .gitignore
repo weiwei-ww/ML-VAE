@@ -15,5 +15,6 @@ __pycache__/
 /src/datasets/*/computed_dataset
 /src/datasets/*/external_data
 /src/datasets/*/kaldi_data
+/src/datasets/*/saved_md_results
 
 /kaldi
