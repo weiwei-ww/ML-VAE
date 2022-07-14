@@ -160,6 +160,10 @@ class SBModel(MD_VAE):
 
         self.save_md_result(batch, predictions)
 
+        for utt_id in batch['id']:
+            if utt_id == 'YKWK_a0442':
+                print()
+
         return loss
 
     def on_stage_end(self, stage, stage_loss, epoch=None):

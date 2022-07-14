@@ -6,7 +6,7 @@ from pathlib import Path
 import copy
 import librosa
 from kaldiio import ReadHelper
-from joblib import Parallel, delayed
+# from joblib import Parallel, delayed
 
 import torch
 import speechbrain as sb
