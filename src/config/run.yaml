@@ -1,9 +1,10 @@
 # Seed needs to be set at top of yaml, before objects with parameters are made
 seed: 123456
 __set_seed: !apply:torch.manual_seed [!ref <seed>]
-__set_deterministic: !apply:torch.use_deterministic_algorithms [True]
+#__set_deterministic: !apply:torch.use_deterministic_algorithms [True]
 
 dataset: !PLACEHOLDER
+language: english
 model_class: !PLACEHOLDER
 model_name: !PLACEHOLDER
 
@@ -18,6 +19,7 @@ prepare:
     valid_json_path: !ref datasets/<dataset>/annotation/valid.json
     test_json_path: !ref datasets/<dataset>/annotation/test.json
     phoneme_set_handler: !new:utils.phonemes.PhonemeSetHandler
+        language: !ref <language>
         n_phonemes: !ref <n_phonemes>
 
 # Feature parameters
