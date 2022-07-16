@@ -104,7 +104,7 @@ def prepare_datasets(hparams):
             computed_dataset_dict = pickle.load(f)
 
         # apply saved MD results as a data cleaning step
-        if hparams.get('apply_saved_md_results', False):
+        if hparams.get('apply_saved_md_results', False) and hparams['saved_md_results_model_name'] is not None:
             json_dir = Path('datasets') / hparams['dataset'] / 'saved_md_results'
             json_path = json_dir / (hparams['saved_md_results_model_name'] + '.json')
             with open(json_path) as f:
