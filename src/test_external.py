@@ -1,9 +1,13 @@
 import sys
 import logging
 
+import torch
+
 from prepare_experiment import prepare_experiment
 from utils.data_io_external_source import prepare_datasets
 from utils.externel_metrics.dnn_hmm_metrics import compute_dnn_hmm_metrics
+
+torch.use_deterministic_algorithms(True, warn_only=True)
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)

@@ -4,6 +4,8 @@ import torch.autograd
 
 from prepare_experiment import prepare_experiment
 
+torch.use_deterministic_algorithms(True, warn_only=True)
+
 
 if __name__ == '__main__':
     prepared = prepare_experiment(sys.argv[1:], prepare_exp_dir=True)

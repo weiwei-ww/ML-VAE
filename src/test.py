@@ -1,7 +1,11 @@
 import sys
 import logging
 
+import torch
+
 from prepare_experiment import prepare_experiment
+
+torch.use_deterministic_algorithms(True, warn_only=True)
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
