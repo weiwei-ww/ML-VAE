@@ -76,29 +76,33 @@ for p1, p2, p3 in mapping_lines:
     phoneme_map_to_39[p2] = p3
 
 
-def get_phoneme_set(n_phonemes=39):
-    assert n_phonemes in [60, 48, 39]
-    phoneme_set = []
-    for p1, p2, p3 in mapping_lines:
-        p = None
-        if n_phonemes == 60:
-            p = p1
-        elif n_phonemes == 48:
-            p = p2
-        elif n_phonemes == 39:
-            p = p3
-        if p not in phoneme_set:
-            phoneme_set.append(p)
+def get_phoneme_set(language='english', n_phonemes=39, **kwargs):
+    if language.lower() == 'english':
+        assert n_phonemes in [60, 48, 39]
+        phoneme_set = []
+        for p1, p2, p3 in mapping_lines:
+            p = None
+            if n_phonemes == 60:
+                p = p1
+            elif n_phonemes == 48:
+                p = p2
+            elif n_phonemes == 39:
+                p = p3
+            if p not in phoneme_set:
+                phoneme_set.append(p)
+    elif language.lower() == 'digits':
+        phoneme_set = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'sil', 'err']
+    else:
+        raise ValueError(f'unknown language: {language}')
 
     return phoneme_set
 
 
-
 class PhonemeSetHandler:
-    def __init__(self, n_phonemes):
+    def __init__(self, language='english', n_phonemes=39, **kwargs):
         assert n_phonemes in [60, 48, 39]
         self.n_phonemes = n_phonemes
-        self.phoneme_set = get_phoneme_set(n_phonemes)
+        self.phoneme_set = get_phoneme_set(language, n_phonemes, **kwargs)
 
     def get_phoneme_set(self):
         return self.phoneme_set
