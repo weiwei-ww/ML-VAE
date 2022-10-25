@@ -1,4 +1,4 @@
-phonem_mapping_str = '''aa	aa	aa
+phoneme_mapping_str = '''aa	aa	aa
 ae	ae	ae
 ah	ah	ah
 ao	ao	aa
@@ -67,7 +67,7 @@ sil sil sil'''
 phoneme_map_to_48 = {}
 phoneme_map_to_39 = {}
 
-mapping_lines = phonem_mapping_str.split('\n')
+mapping_lines = phoneme_mapping_str.split('\n')
 mapping_lines = [line.split() for line in mapping_lines]
 
 for p1, p2, p3 in mapping_lines:
@@ -100,7 +100,10 @@ def get_phoneme_set(language='english', n_phonemes=39, **kwargs):
 
 class PhonemeSetHandler:
     def __init__(self, language='english', n_phonemes=39, **kwargs):
-        assert n_phonemes in [60, 48, 39]
+        if language == 'english':
+            assert n_phonemes in [60, 48, 39]
+        elif language == 'digits':
+            assert n_phonemes in [11, 12]
         self.n_phonemes = n_phonemes
         self.phoneme_set = get_phoneme_set(language, n_phonemes, **kwargs)
 
