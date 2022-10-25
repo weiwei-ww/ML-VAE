@@ -270,7 +270,7 @@ class SBModel(MDModel):
 
         with open(save_path, 'w') as f:
             json.dump(md_results, f)
-        print(len(md_results))
+        # print(len(md_results))
 
         # if len(saved_md_results) > 0:
         #     for md_ret in saved_md_results:

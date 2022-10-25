@@ -158,8 +158,6 @@ boundary_kld_weight: 0.00001
 vae_kld_weight: 0.00001
 pi_nll_weight: 0.001
 
-
-
 # evaluation metrics
 metric_keys:
     - phn_recog_bce_loss
@@ -168,11 +166,7 @@ metric_keys:
     - pi_nll_loss
     - vae_kld_loss
     - recon_loss
-    - plvl_md.ACC
-    - plvl_md.PRE
-    - plvl_md.REC
-    - plvl_md.F1
-    - boundary.f1
-    - boundary.r_value
+    - plvl_md
+    - boundary
 
 max_key: plvl_md.F1

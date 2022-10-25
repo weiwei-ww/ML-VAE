@@ -4,17 +4,29 @@ lr_wav2vec: 0.0001
 
 epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter
     limit: !ref <n_epochs>
+## Model parameters
+#activation: !name:torch.nn.LeakyReLU
+#dropout: 0.15
+#cnn_blocks: 2
+#cnn_channels: (128, 128)
+#cnn_kernelsize: (3, 3)
+#rnn_layers: 2
+#rnn_neurons: 512
+#rnn_bidirectional: True
+#dnn_blocks: 2
+#dnn_neurons: 128
+
 # Model parameters
 activation: !name:torch.nn.LeakyReLU
 dropout: 0.15
-cnn_blocks: 2
-cnn_channels: (128, 128)
+cnn_blocks: 1
+cnn_channels: (16, 16)
 cnn_kernelsize: (3, 3)
-rnn_layers: 2
-rnn_neurons: 512
-rnn_bidirectional: True
-dnn_blocks: 2
-dnn_neurons: 128
+rnn_layers: 1
+rnn_neurons: 32
+rnn_bidirectional: False
+dnn_blocks: 1
+dnn_neurons: 64
 
 
 # Outputs
@@ -93,10 +105,7 @@ md_metrics_file: !ref <output_dir>/md_metrics.txt
 metric_keys:
     - phn_per.error_rate
     - cnncl_per.error_rate
-    - plvl_md.ACC
-    - plvl_md.PRE
-    - plvl_md.REC
-    - plvl_md.F1
+    - plvl_md
 
 max_key: plvl_md.F1
 
