@@ -3,6 +3,7 @@ seed: 123456
 __set_seed: !apply:torch.manual_seed [!ref <seed>]
 
 dataset: L2_ARCTIC
+language: english
 
 # Data files
 n_phonemes: 39
@@ -12,6 +13,7 @@ prepare:
     valid_json_path: !ref datasets/<dataset>/annotation/valid.json
     test_json_path: !ref datasets/<dataset>/annotation/test.json
     phoneme_set_handler: !new:utils.phonemes.PhonemeSetHandler
+        language: !ref <language>
         n_phonemes: !ref <n_phonemes>
 
 # Feature parameters
