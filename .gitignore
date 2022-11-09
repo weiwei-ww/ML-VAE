@@ -17,4 +17,6 @@ __pycache__/
 /src/datasets/*/kaldi_data
 /src/datasets/*/saved_md_results
 
+src/datasets/L2_ARCTIC/saved_outputs*
+
 /kaldi
