@@ -136,6 +136,7 @@ def compute_fbank_kaldi(wav_scp_path, feature_params):
 
     def run_cmd(cmd):
         cmd = ' '.join(cmd)
+        logger.info(f'Run cmd: {cmd}')
         process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
         process.wait()
         if process.returncode != 0:
@@ -180,8 +181,12 @@ def compute_fbank_kaldi(wav_scp_path, feature_params):
     # compute CMVN
     utt2spk_path = kaldi_data_dir / f'{set_name}.utt2spk'
     spk2utt_lines = convert_utt2spk_to_spk2utt(utt2spk_path)
-    spk2utt_content = ''.join(spk2utt_lines)
-    cmd = [f'echo "{spk2utt_content}" | compute-cmvn-stats --spk2utt=ark:-']
+    spk2utt_path = kaldi_data_dir / f'{set_name}.spk2utt'
+    with open(spk2utt_path, 'w') as f:
+        f.writelines(spk2utt_lines)
+    # spk2utt_content = ''.join(spk2utt_lines)
+    # cmd = [f'echo "{spk2utt_content}" | compute-cmvn-stats --spk2utt=ark:-']
+    cmd = [f'compute-cmvn-stats --spk2utt=ark:{spk2utt_path}']
     cmd.append(f'scp:{delta_feats_scp_path.absolute()}')
     cmvn_scp_path = kaldi_data_dir / f'{set_name}.cmvn.scp'
     cmvn_ark_path = cmvn_scp_path.with_suffix('.ark')

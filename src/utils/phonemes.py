@@ -92,6 +92,11 @@ def get_phoneme_set(language='english', n_phonemes=39, **kwargs):
                 phoneme_set.append(p)
     elif language.lower() == 'digits':
         phoneme_set = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'sil', 'err']
+        assert n_phonemes == len(phoneme_set)
+    elif language.lower() == 'pinyin':
+        with open('utils/pinyin_dict.txt') as f:
+            phoneme_set = [l.rstrip() for l in f.readlines()]
+        assert n_phonemes == len(phoneme_set)
     else:
         raise ValueError(f'unknown language: {language}')
 
