@@ -195,4 +195,4 @@ metric_keys:
     - plvl_md
     - boundary
 
-max_key: plvl_md.F1
+max_key: plvl_md.soft_F1
